@@ -8,6 +8,7 @@ import android.media.MediaPlayer;
 import android.media.SoundPool;
 import android.os.Handler;
 import android.os.Looper;
+import com.example.R;
 import com.sect.idle.core.MathUtils;
 import java.util.HashMap;
 import java.util.Random;
@@ -23,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 2. Multi-theme procedural continuous BGM generator (Peaceful Sect, Intense Combat, Zen Meditation).
  * 3. Dynamic audio ducking, AudioFocus management, and zero-allocation runtime streaming buffers.
  * 4. Full fallback and integration with Android background assets.
+ * 5. 100% Pure Java 7 & Sketchware Pro v7.0.0 Compatible (Zero Lambdas, Zero Streams).
  */
 public final class AudioManager {
     private static volatile AudioManager instance;
@@ -77,9 +79,9 @@ public final class AudioManager {
     private SoundPool sfxPool;
     private MediaPlayer bgmPlayer;
     private MediaPlayer ambientPlayer;
-    private final HashMap<String, Integer> sfxMap = new HashMap<>();
-    private final HashMap<String, Integer> loadedSfx = new HashMap<>();
-    private final HashMap<String, Float> sfxPitches = new HashMap<>();
+    private final HashMap<String, Integer> sfxMap = new HashMap<String, Integer>();
+    private final HashMap<String, Integer> loadedSfx = new HashMap<String, Integer>();
+    private final HashMap<String, Float> sfxPitches = new HashMap<String, Float>();
     private final Context context;
 
     private float bgmVolume = 0.6f;
@@ -143,30 +145,49 @@ public final class AudioManager {
                 .build();
 
         this.sfxPool = new SoundPool.Builder().setMaxStreams(MAX_STREAMS).setAudioAttributes(attrs).build();
-        this.sfxPool.setOnLoadCompleteListener((pool, sampleId, status) -> {
-            if (status == 0) {
-                sfxPitches.put("loaded_" + sampleId, 1.0f);
+        this.sfxPool.setOnLoadCompleteListener(new SoundPool.OnLoadCompleteListener() {
+            @Override
+            public void onLoadComplete(SoundPool pool, int sampleId, int status) {
+                if (status == 0) {
+                    sfxPitches.put("loaded_" + sampleId, 1.0f);
+                }
             }
         });
 
-        this.focusListener = focusChange -> {
-            switch (focusChange) {
-                case android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                    setDucking(true);
-                    break;
-                case android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-                    pauseBgm();
-                    break;
-                case android.media.AudioManager.AUDIOFOCUS_GAIN:
-                    setDucking(false);
-                    resumeBgm();
-                    break;
-                case android.media.AudioManager.AUDIOFOCUS_LOSS:
-                    pauseBgm();
-                    break;
+        this.focusListener = new android.media.AudioManager.OnAudioFocusChangeListener() {
+            @Override
+            public void onAudioFocusChange(int focusChange) {
+                switch (focusChange) {
+                    case android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                        setDucking(true);
+                        break;
+                    case android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+                        pauseBgm();
+                        break;
+                    case android.media.AudioManager.AUDIOFOCUS_GAIN:
+                        setDucking(false);
+                        resumeBgm();
+                        break;
+                    case android.media.AudioManager.AUDIOFOCUS_LOSS:
+                        pauseBgm();
+                        break;
+                }
             }
         };
         requestAudioFocus();
+
+        // Preload Raw Audio Assets
+        try {
+            loadSfx(SFX_STRIKE, R.raw.sfx_strike);
+            loadSfx(SFX_SWORD_SPAR, R.raw.sfx_sword_spar);
+            loadSfx(SFX_CRITICAL_STRIKE, R.raw.sfx_critical);
+            loadSfx(SFX_BREAKTHROUGH, R.raw.sfx_breakthrough);
+            loadSfx(SFX_CLICK, R.raw.sfx_click);
+            loadSfx(SFX_BARRIER_SHATTER, R.raw.sfx_spirit_burst);
+            loadSfx(SFX_RING_BELL, R.raw.sfx_bell);
+            loadSfx(SFX_VICTORY, R.raw.sfx_victory);
+            loadSfx(SFX_DEFEAT, R.raw.sfx_defeat);
+        } catch (Throwable ignored) {}
 
         // Start procedural peaceful sect BGM loop by default
         startProceduralBgm(THEME_SECT_PEACE);
@@ -181,6 +202,10 @@ public final class AudioManager {
             }
         }
         return instance;
+    }
+
+    public static AudioManager getInstance(Context ctx) {
+        return get(ctx);
     }
 
     private void requestAudioFocus() {
@@ -235,16 +260,18 @@ public final class AudioManager {
     /**
      * Highly optimized Xianxia procedural audio synthesizer generating 16-bit PCM waves in real-time.
      */
-    public void playSynthesizedEffect(String effect) {
+    public void playSynthesizedEffect(final String effect) {
         if (!enabled || effect == null) return;
 
-        soundExecutor.execute(() -> {
-            try {
-                int sampleRate = SAMPLE_RATE;
-                int durationMs;
-                float startFreq;
-                float endFreq;
-                float baseVol = sfxVolume * masterVolume * (ducking ? 0.35f : 1.0f);
+        soundExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    int sampleRate = SAMPLE_RATE;
+                    int durationMs;
+                    float startFreq;
+                    float endFreq;
+                    float baseVol = sfxVolume * masterVolume * (ducking ? 0.35f : 1.0f);
 
                 switch (effect) {
                     // --- COMBAT AUDIO EFFECTS ---
@@ -505,6 +532,7 @@ public final class AudioManager {
                 Thread.sleep(durationMs + 20);
                 track.release();
             } catch (Exception ignored) {}
+            }
         });
     }
 
@@ -531,93 +559,96 @@ public final class AudioManager {
         if (isProceduralBgmRunning.get()) return;
 
         isProceduralBgmRunning.set(true);
-        soundExecutor.execute(() -> {
-            try {
-                int sampleRate = SAMPLE_RATE;
-                int minBufSize = AudioTrack.getMinBufferSize(
-                        sampleRate,
-                        AudioFormat.CHANNEL_OUT_MONO,
-                        AudioFormat.ENCODING_PCM_16BIT
-                );
+        soundExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    int sampleRate = SAMPLE_RATE;
+                    int minBufSize = AudioTrack.getMinBufferSize(
+                            sampleRate,
+                            AudioFormat.CHANNEL_OUT_MONO,
+                            AudioFormat.ENCODING_PCM_16BIT
+                    );
 
-                proceduralBgmTrack = new AudioTrack.Builder()
-                        .setAudioAttributes(new AudioAttributes.Builder()
-                                .setUsage(AudioAttributes.USAGE_GAME)
-                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                                .build())
-                        .setAudioFormat(new AudioFormat.Builder()
-                                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                                .setSampleRate(sampleRate)
-                                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                                .build())
-                        .setBufferSizeInBytes(Math.max(minBufSize, 4096))
-                        .setTransferMode(AudioTrack.MODE_STREAM)
-                        .build();
+                    proceduralBgmTrack = new AudioTrack.Builder()
+                            .setAudioAttributes(new AudioAttributes.Builder()
+                                    .setUsage(AudioAttributes.USAGE_GAME)
+                                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                    .build())
+                            .setAudioFormat(new AudioFormat.Builder()
+                                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                                    .setSampleRate(sampleRate)
+                                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                                    .build())
+                            .setBufferSizeInBytes(Math.max(minBufSize, 4096))
+                            .setTransferMode(AudioTrack.MODE_STREAM)
+                            .build();
 
-                proceduralBgmTrack.play();
-                Random rand = new Random(System.currentTimeMillis());
+                    proceduralBgmTrack.play();
+                    Random rand = new Random(System.currentTimeMillis());
 
-                while (isProceduralBgmRunning.get() && enabled && bgmEnabled) {
-                    String currentTheme = activeBgmTheme;
-                    int noteIndex = rand.nextInt(PENTATONIC_FREQS.length);
-                    float noteFreq = PENTATONIC_FREQS[noteIndex];
+                    while (isProceduralBgmRunning.get() && enabled && bgmEnabled) {
+                        String currentTheme = activeBgmTheme;
+                        int noteIndex = rand.nextInt(PENTATONIC_FREQS.length);
+                        float noteFreq = PENTATONIC_FREQS[noteIndex];
 
-                    int noteDurationMs;
-                    int pauseMs;
-                    float decayFactor;
+                        int noteDurationMs;
+                        int pauseMs;
+                        float decayFactor;
 
-                    if (THEME_COMBAT_INTENSE.equals(currentTheme)) {
-                        // Fast, urgent martial combat cadence (250ms note, 120ms pause)
-                        noteDurationMs = 260 + rand.nextInt(180);
-                        pauseMs = 100 + rand.nextInt(120);
-                        decayFactor = 4.2f;
-                    } else if (THEME_MEDITATION_ZEN.equals(currentTheme)) {
-                        // Deep, long sustained meditative singing tone (1200ms note, 600ms pause)
-                        noteDurationMs = 1200 + rand.nextInt(600);
-                        pauseMs = 500 + rand.nextInt(600);
-                        decayFactor = 1.8f;
-                    } else {
-                        // Standard Peaceful Sect Guzheng pluck (650ms note, 350ms pause)
-                        noteDurationMs = 600 + rand.nextInt(450);
-                        pauseMs = 280 + rand.nextInt(350);
-                        decayFactor = 3.2f;
+                        if (THEME_COMBAT_INTENSE.equals(currentTheme)) {
+                            // Fast, urgent martial combat cadence (250ms note, 120ms pause)
+                            noteDurationMs = 260 + rand.nextInt(180);
+                            pauseMs = 100 + rand.nextInt(120);
+                            decayFactor = 4.2f;
+                        } else if (THEME_MEDITATION_ZEN.equals(currentTheme)) {
+                            // Deep, long sustained meditative singing tone (1200ms note, 600ms pause)
+                            noteDurationMs = 1200 + rand.nextInt(600);
+                            pauseMs = 500 + rand.nextInt(600);
+                            decayFactor = 1.8f;
+                        } else {
+                            // Standard Peaceful Sect Guzheng pluck (650ms note, 350ms pause)
+                            noteDurationMs = 600 + rand.nextInt(450);
+                            pauseMs = 280 + rand.nextInt(350);
+                            decayFactor = 3.2f;
+                        }
+
+                        int noteSamples = (sampleRate * noteDurationMs) / 1000;
+                        short[] noteBuffer = new short[noteSamples];
+                        float effectiveVol = getEffectiveBgmVolume() * 0.32f;
+
+                        for (int i = 0; i < noteSamples; i++) {
+                            float t = (float) i / noteSamples;
+                            float fundamental = (float) Math.sin(2.0 * Math.PI * noteFreq * (i / (float) sampleRate));
+                            float harmonic2 = (float) Math.sin(4.0 * Math.PI * noteFreq * (i / (float) sampleRate)) * 0.25f;
+                            float harmonic3 = (float) Math.sin(6.0 * Math.PI * noteFreq * (i / (float) sampleRate)) * 0.10f;
+                            float envelope = (float) Math.exp(-decayFactor * t);
+
+                            // Subtle bamboo mountain breeze layer
+                            float breeze = (float) ((rand.nextFloat() - 0.5f) * 0.035f * Math.sin(t * Math.PI));
+
+                            float sampleVal = (fundamental + harmonic2 + harmonic3 + breeze) * envelope * effectiveVol * Short.MAX_VALUE;
+                            noteBuffer[i] = (short) MathUtils.clamp(sampleVal, Short.MIN_VALUE, Short.MAX_VALUE);
+                        }
+
+                        if (proceduralBgmTrack != null && proceduralBgmTrack.getState() == AudioTrack.STATE_INITIALIZED) {
+                            proceduralBgmTrack.write(noteBuffer, 0, noteBuffer.length);
+                        }
+
+                        Thread.sleep(pauseMs);
                     }
 
-                    int noteSamples = (sampleRate * noteDurationMs) / 1000;
-                    short[] noteBuffer = new short[noteSamples];
-                    float effectiveVol = getEffectiveBgmVolume() * 0.32f;
-
-                    for (int i = 0; i < noteSamples; i++) {
-                        float t = (float) i / noteSamples;
-                        float fundamental = (float) Math.sin(2.0 * Math.PI * noteFreq * (i / (float) sampleRate));
-                        float harmonic2 = (float) Math.sin(4.0 * Math.PI * noteFreq * (i / (float) sampleRate)) * 0.25f;
-                        float harmonic3 = (float) Math.sin(6.0 * Math.PI * noteFreq * (i / (float) sampleRate)) * 0.10f;
-                        float envelope = (float) Math.exp(-decayFactor * t);
-
-                        // Subtle bamboo mountain breeze layer
-                        float breeze = (float) ((rand.nextFloat() - 0.5f) * 0.035f * Math.sin(t * Math.PI));
-
-                        float sampleVal = (fundamental + harmonic2 + harmonic3 + breeze) * envelope * effectiveVol * Short.MAX_VALUE;
-                        noteBuffer[i] = (short) MathUtils.clamp(sampleVal, Short.MIN_VALUE, Short.MAX_VALUE);
+                    if (proceduralBgmTrack != null) {
+                        try {
+                            proceduralBgmTrack.stop();
+                            proceduralBgmTrack.release();
+                        } catch (Exception ignored) {}
+                        proceduralBgmTrack = null;
                     }
-
-                    if (proceduralBgmTrack != null && proceduralBgmTrack.getState() == AudioTrack.STATE_INITIALIZED) {
-                        proceduralBgmTrack.write(noteBuffer, 0, noteBuffer.length);
-                    }
-
-                    Thread.sleep(pauseMs);
+                } catch (Exception ignored) {
+                } finally {
+                    isProceduralBgmRunning.set(false);
                 }
-
-                if (proceduralBgmTrack != null) {
-                    try {
-                        proceduralBgmTrack.stop();
-                        proceduralBgmTrack.release();
-                    } catch (Exception ignored) {}
-                    proceduralBgmTrack = null;
-                }
-            } catch (Exception ignored) {
-            } finally {
-                isProceduralBgmRunning.set(false);
             }
         });
     }
@@ -633,7 +664,7 @@ public final class AudioManager {
         }
     }
 
-    public void playBgm(int resId, boolean loop) {
+    public void playBgm(int resId, final boolean loop) {
         if (!enabled || resId == 0) return;
         stopProceduralBgm();
         String key = String.valueOf(resId);
@@ -645,8 +676,19 @@ public final class AudioManager {
             if (bgmPlayer != null) {
                 bgmPlayer.setLooping(loop);
                 bgmPlayer.setVolume(getEffectiveBgmVolume(), getEffectiveBgmVolume());
-                bgmPlayer.setOnErrorListener((mp, what, extra) -> { stopBgm(); return true; });
-                bgmPlayer.setOnCompletionListener(mp -> { if (!loop) currentBgm = ""; });
+                bgmPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+                    @Override
+                    public boolean onError(MediaPlayer mp, int what, int extra) {
+                        stopBgm();
+                        return true;
+                    }
+                });
+                bgmPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                    @Override
+                    public void onCompletion(MediaPlayer mp) {
+                        if (!loop) currentBgm = "";
+                    }
+                });
                 bgmPlayer.start();
                 currentBgm = key;
             }

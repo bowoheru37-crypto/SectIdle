@@ -209,9 +209,17 @@ public final class Disciple {
         this.colorTint = 0xFFFFFFFF;
         this.currentTask = GameConfig.TASK_NONE;
         this.taskEfficiency = 50;
+        this.efficiency = 1.0f;
         this.loyalty = 50;
         this.reputation = 0;
         this.relationshipSect = 50;
+    }
+
+    public float efficiency = 1.0f;
+
+    public Disciple(String name) {
+        this();
+        this.name = name != null ? name : "Disciple";
     }
 
     public void initStats(int s, int a, int i, int l, int v, int w, int c) {

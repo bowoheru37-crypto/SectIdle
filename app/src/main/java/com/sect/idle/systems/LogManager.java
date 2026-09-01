@@ -65,11 +65,34 @@ public final class LogManager {
 
     public void log(String category, String message) { log(category, message, 0xFFFFFFFF, 1); }
     public void debug(String m) { log("DEBUG", m, 0xFF888888, 0); }
-    public void info(String m) { log("INFO", m, 0xFFAAAAAA, 1); }
-    public void success(String m) { log("SUCCESS", m, 0xFF4CAF50, 1); }
-    public void warning(String m) { log("WARN", m, 0xFFFF9800, 2); }
-    public void error(String m) { log("ERROR", m, 0xFFFF5252, 3); }
-    public void fatal(String m) { log("FATAL", m, 0xFFD50000, 4); }
+    public void info(String m) { 
+        log("INFO", m, 0xFFAAAAAA, 1); 
+        com.sect.idle.utils.ExceptionManager.get().addBreadcrumb("INFO", m);
+    }
+    public void success(String m) { 
+        log("SUCCESS", m, 0xFF4CAF50, 1); 
+        com.sect.idle.utils.ExceptionManager.get().addBreadcrumb("SUCCESS", m);
+    }
+    public void warning(String m) { 
+        log("WARN", m, 0xFFFF9800, 2); 
+        com.sect.idle.utils.ExceptionManager.get().reportWarning("WARN", m);
+    }
+    public void error(String m) { 
+        log("ERROR", m, 0xFFFF5252, 3); 
+        com.sect.idle.utils.ExceptionManager.get().reportException(null, "ERROR", m, com.sect.idle.utils.ExceptionManager.LEVEL_ERROR);
+    }
+    public void error(String m, Throwable t) {
+        log("ERROR", m != null ? m : (t != null ? t.getMessage() : "Error"), 0xFFFF5252, 3);
+        com.sect.idle.utils.ExceptionManager.get().reportException(t, "ERROR", m, com.sect.idle.utils.ExceptionManager.LEVEL_ERROR);
+    }
+    public void fatal(String m) { 
+        log("FATAL", m, 0xFFD50000, 4); 
+        com.sect.idle.utils.ExceptionManager.get().reportFatal(null, "FATAL", m);
+    }
+    public void fatal(String m, Throwable t) {
+        log("FATAL", m != null ? m : (t != null ? t.getMessage() : "Fatal Error"), 0xFFD50000, 4);
+        com.sect.idle.utils.ExceptionManager.get().reportFatal(t, "FATAL", m);
+    }
     public void event(String m) { log("EVENT", m, 0xFFFFD700, 1); }
     public void battle(String m) { log("BATTLE", m, 0xFFFF5722, 1); }
     public void story(String m) { log("STORY", m, 0xFFB388FF, 1); }

@@ -76,6 +76,58 @@ public final class SpriteMaker {
         return bmp;
     }
 
+    public static Bitmap createBuilding(int size, int type, int level, long seed) {
+        Bitmap bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        float s = size * 0.5f;
+
+        // Shadow
+        P.setColor(0x40000000);
+        R.set(4, size - 14, size - 4, size - 2);
+        c.drawOval(R, P);
+
+        // Building base
+        int baseColor = 0xFF5D4037;
+        int roofColor = 0xFFD32F2F;
+        switch (type % 6) {
+            case 0: roofColor = 0xFFFFD700; baseColor = 0xFF8D6E63; break; // Main Hall (Gold)
+            case 1: roofColor = 0xFF1976D2; baseColor = 0xFF546E7A; break; // Cultivation Chamber (Blue)
+            case 2: roofColor = 0xFF388E3C; baseColor = 0xFF6D4C41; break; // Herb Garden / Alchemy (Green)
+            case 3: roofColor = 0xFFE64A19; baseColor = 0xFF4E342E; break; // Forge / Mine (Orange)
+            case 4: roofColor = 0xFF7B1FA2; baseColor = 0xFF455A64; break; // Library / Research (Purple)
+            default: roofColor = 0xFFC2185B; baseColor = 0xFF5D4037; break;
+        }
+
+        // Walls
+        P.setColor(baseColor);
+        R.set(s - size * 0.35f, s - size * 0.1f, s + size * 0.35f, size - 10);
+        c.drawRoundRect(R, 4, 4, P);
+
+        // Door
+        P.setColor(0xFF212121);
+        R.set(s - 8, size - 26, s + 8, size - 10);
+        c.drawRect(R, P);
+
+        // Roof (Pagoda style)
+        P.setColor(roofColor);
+        PATH.reset();
+        PATH.moveTo(s, 6);
+        PATH.lineTo(size - 4, s - size * 0.05f);
+        PATH.lineTo(4, s - size * 0.05f);
+        PATH.close();
+        c.drawPath(PATH, P);
+
+        // Roof Ridge
+        P.setColor(0xFFFFE082);
+        P.setStrokeWidth(2f);
+        P.setStyle(Paint.Style.STROKE);
+        c.drawLine(s, 6, size - 4, s - size * 0.05f, P);
+        c.drawLine(s, 6, 4, s - size * 0.05f, P);
+        P.setStyle(Paint.Style.FILL);
+
+        return bmp;
+    }
+
     public static Bitmap createItem(int size, int type, int rarity, int element) {
         Bitmap bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
