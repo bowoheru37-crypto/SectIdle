@@ -33,6 +33,7 @@ public final class SectData {
     public long sectExp = 0;
     public int sectRealm = 0;
     public int sectRealmExp = 0;
+    public int highestRealm = 0;
     public int sectRank = 1;
     public int maxDisciples = 10;
 

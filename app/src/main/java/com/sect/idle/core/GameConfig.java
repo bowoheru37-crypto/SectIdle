@@ -291,6 +291,10 @@ public final class GameConfig {
         return a + (int)((b - a) * clamp(t, 0f, 1f));
     }
 
+    public static String getBuildingName(int id) {
+        return (id >= 0 && id < BUILD_COUNT) ? BUILD_NAMES[id] : "Building";
+    }
+
     public static void setQuality(int q) {
         applyQuality(q);
     }

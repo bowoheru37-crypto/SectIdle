@@ -96,6 +96,7 @@ public final class Disciple {
     public int bodyRefiningStage = 1;
     public int totalBattles = 0;
     public int battlesWon = 0;
+    public int totalBattlesWon = 0;
     public int hobby;
     public int jobClass;
     public int jobLevel;

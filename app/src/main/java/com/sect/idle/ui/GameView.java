@@ -122,6 +122,7 @@ public final class GameView extends SurfaceView implements SurfaceHolder.Callbac
         shakeDecay = GameConfig.CAM_SHAKE_DECAY;
 
         selectInitialTier();
+        com.sect.idle.gameplay.GameplayFeedbackDispatcher.getInstance().init(context);
         loadAssetsSync(context);
     }
 
@@ -334,6 +335,18 @@ public final class GameView extends SurfaceView implements SurfaceHolder.Callbac
         if (effects != null) effects.update(dt);
         if (sceneManager != null) sceneManager.update(dt);
 
+        com.sect.idle.render.StateAnimationSystem sas = com.sect.idle.render.StateAnimationSystem.getInstance();
+        sas.update(dt);
+        if (sas.requestedShakeIntensity > 0.1f) {
+            shakeIntensity = Math.max(shakeIntensity, sas.requestedShakeIntensity);
+            sas.requestedShakeIntensity = 0f;
+        }
+        if (sas.requestedFlashIntensity > 0.01f) {
+            flashIntensity = Math.max(flashIntensity, sas.requestedFlashIntensity);
+            flashColor = sas.requestedFlashColor;
+            sas.requestedFlashIntensity = 0f;
+        }
+
         if (shakeIntensity > 0.001f) {
             shakeIntensity *= shakeDecay;
             if (shakeIntensity < 0.1f) shakeIntensity = 0f;
@@ -408,6 +421,7 @@ public final class GameView extends SurfaceView implements SurfaceHolder.Callbac
             if (fxCanvas != null) effects.render(fxCanvas, paintSolid);
         }
         renderEngine.endFrame(canvas);
+        com.sect.idle.render.StateAnimationSystem.getInstance().render(canvas, camera, w, h);
     }
 
     private void renderTierLite(Canvas canvas, int w, int h) {
@@ -418,12 +432,14 @@ public final class GameView extends SurfaceView implements SurfaceHolder.Callbac
         rectSrc.set(0, 0, liteBuffer.getWidth(), liteBuffer.getHeight());
         rectDst.set(0, 0, w, h);
         canvas.drawBitmap(liteBuffer, rectSrc, rectDst, paintSolid);
+        com.sect.idle.render.StateAnimationSystem.getInstance().render(canvas, camera, w, h);
     }
 
     private void renderTierDirect(Canvas canvas, int w, int h) {
         canvas.drawColor(0xFF0D0D15);
         if (sceneManager != null) sceneManager.render(canvas, paintSolid, camera);
         if (effects != null) effects.render(canvas, paintSolid);
+        com.sect.idle.render.StateAnimationSystem.getInstance().render(canvas, camera, w, h);
     }
 
     private void renderDebug(Canvas canvas) {

@@ -125,6 +125,7 @@ public final class SectScene {
     private static final int LIGHT_BAKE_SIZE = 128;
     private Bitmap lightBakedBitmap;
     private final Bitmap[] buildingIconCache = new Bitmap[16];
+    private final java.util.HashMap<String, Bitmap> discipleSpriteCache = new java.util.HashMap<String, Bitmap>();
 
     private float frameZoom = 1f;
     private int buildingCount = 0;
@@ -144,6 +145,8 @@ public final class SectScene {
         void onDiscipleSelected(Disciple d);
         void onBuildingTapped(Building b, boolean isBuilt);
         void onBattleRequested();
+        void onTournamentRequested();
+        void onWarRequested();
         void onRecruitRequested();
         void onMarketRequested();
         void onMenuRequested();
@@ -331,6 +334,21 @@ public final class SectScene {
             }
         }
         return buildingIconCache[idx];
+    }
+
+    private Bitmap getDiscipleSprite(Disciple d) {
+        if (d == null) return null;
+        String key = (d.id != null ? d.id : "d") + "_" + d.realm + "_" + d.element + "_" + d.currentTask;
+        Bitmap cached = discipleSpriteCache.get(key);
+        if (cached == null || cached.isRecycled()) {
+            try {
+                cached = SpriteMaker.createDisciple(64, 64, d.element, d.realm, d.isMale, d.currentTask, d.id != null ? d.id.hashCode() : 42L);
+                discipleSpriteCache.put(key, cached);
+            } catch (OutOfMemoryError oom) {
+                return null;
+            }
+        }
+        return cached;
     }
 
     private static Bitmap bakeRadialLightTexture(int size) {
@@ -739,7 +757,21 @@ public final class SectScene {
                 selectionPaint.setAlpha(200);
                 canvas.drawCircle(px, py, rad * pulse + 4f, selectionPaint);
             }
-            if (walkSheetGridValid && zoom > 0.3f) {
+            Bitmap dSprite = getDiscipleSprite(d);
+            if (dSprite != null && !dSprite.isRecycled() && zoom > 0.25f) {
+                float spriteSize = rad * 2.2f;
+                float bob = (float) Math.sin(animTime * 4f + i) * (2f * zoom);
+                if (d.facing < 0) {
+                    canvas.save();
+                    canvas.scale(-1f, 1f, px, py);
+                    dstRect.set((int) (px - spriteSize * 0.5f), (int) (py - spriteSize + bob), (int) (px + spriteSize * 0.5f), (int) (py + bob));
+                    canvas.drawBitmap(dSprite, null, dstRect, atlasIconPaint);
+                    canvas.restore();
+                } else {
+                    dstRect.set((int) (px - spriteSize * 0.5f), (int) (py - spriteSize + bob), (int) (px + spriteSize * 0.5f), (int) (py + bob));
+                    canvas.drawBitmap(dSprite, null, dstRect, atlasIconPaint);
+                }
+            } else if (walkSheetGridValid && zoom > 0.3f) {
                 int frame = d.animFrame % WALK_FRAME_COUNT;
                 int srcX = frame * walkFrameW;
                 float spriteW = walkFrameW * zoom * 0.5f, spriteH = walkFrameH * zoom * 0.5f;
@@ -887,10 +919,12 @@ public final class SectScene {
         canvas.drawText(sb1, 0, sb1.length(), 16, H - 24, uiTextPaint);
 
         // Quick Bottom Action Buttons
-        renderBottomButton(canvas, W - 320, H - 54, W - 245, H - 8, "⚔️ Battle", 0xFFE53935);
-        renderBottomButton(canvas, W - 240, H - 54, W - 165, H - 8, "👥 Recruit", 0xFF43A047);
-        renderBottomButton(canvas, W - 160, H - 54, W - 85, H - 8, "🏛️ Market", 0xFF1E88E5);
-        renderBottomButton(canvas, W - 80, H - 54, W - 8, H - 8, "⚙️ Menu", 0xFF8E24AA);
+        renderBottomButton(canvas, W - 430, H - 54, W - 360, H - 8, "⚔️ War", 0xFFFF5252);
+        renderBottomButton(canvas, W - 355, H - 54, W - 285, H - 8, "🏆 Arena", 0xFFFFD700);
+        renderBottomButton(canvas, W - 280, H - 54, W - 215, H - 8, "💥 Battle", 0xFFE53935);
+        renderBottomButton(canvas, W - 210, H - 54, W - 145, H - 8, "👥 Recruit", 0xFF43A047);
+        renderBottomButton(canvas, W - 140, H - 54, W - 75, H - 8, "🏛️ Market", 0xFF1E88E5);
+        renderBottomButton(canvas, W - 70, H - 54, W - 5, H - 8, "⚙️ Menu", 0xFF8E24AA);
 
         if (GameConfig.DEBUG) {
             uiTextPaint.setColor(0xFFFFD700); uiTextPaint.setTextSize(11f);
@@ -973,16 +1007,22 @@ public final class SectScene {
 
         // Check Bottom Action Bar Buttons
         if (y >= H - UI_BOT_H) {
-            if (x >= W - 320 && x <= W - 245) {
+            if (x >= W - 430 && x <= W - 360) {
+                if (selectionListener != null) selectionListener.onWarRequested();
+                return;
+            } else if (x >= W - 355 && x <= W - 285) {
+                if (selectionListener != null) selectionListener.onTournamentRequested();
+                return;
+            } else if (x >= W - 280 && x <= W - 215) {
                 if (selectionListener != null) selectionListener.onBattleRequested();
                 return;
-            } else if (x >= W - 240 && x <= W - 165) {
+            } else if (x >= W - 210 && x <= W - 145) {
                 if (selectionListener != null) selectionListener.onRecruitRequested();
                 return;
-            } else if (x >= W - 160 && x <= W - 85) {
+            } else if (x >= W - 140 && x <= W - 75) {
                 if (selectionListener != null) selectionListener.onMarketRequested();
                 return;
-            } else if (x >= W - 80 && x <= W - 8) {
+            } else if (x >= W - 70 && x <= W - 5) {
                 if (selectionListener != null) selectionListener.onMenuRequested();
                 return;
             }

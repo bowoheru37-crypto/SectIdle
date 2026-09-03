@@ -12,6 +12,7 @@ import com.sect.idle.gameplay.*;
 import com.sect.idle.models.*;
 import com.sect.idle.systems.*;
 import android.util.Log;
+import java.util.ArrayList;
 
 public class GameActivity extends Activity {
     private static final String TAG = "GameActivity";
@@ -115,6 +116,35 @@ public class GameActivity extends Activity {
                     }
 
                     @Override
+                    public void onTournamentRequested() {
+                        if (dialogManager != null && data != null) {
+                            Disciple selected = null;
+                            int selIdx = sceneManager.getSectScene().getSelectedDisciple();
+                            if (selIdx >= 0 && selIdx < data.disciples.size()) {
+                                selected = data.disciples.get(selIdx);
+                            }
+                            dialogManager.showTournamentDialog(selected, data, new DialogManager.TournamentCallback() {
+                                @Override
+                                public void onTournamentFinished(TournamentSystem.TournamentResult result) {
+                                    if (data != null) data.recalculateEconomy();
+                                }
+                            });
+                        }
+                    }
+
+                    @Override
+                    public void onWarRequested() {
+                        if (dialogManager != null && data != null) {
+                            dialogManager.showWarDialog(data, new DialogManager.WarCallback() {
+                                @Override
+                                public void onWarFinished(WarSystem.WarResult result) {
+                                    if (data != null) data.recalculateEconomy();
+                                }
+                            });
+                        }
+                    }
+
+                    @Override
                     public void onRecruitRequested() {
                         final Disciple candidate = generateRandomDisciple();
                         if (dialogManager != null) {
@@ -128,7 +158,7 @@ public class GameActivity extends Activity {
                                     }
                                 }
                                 @Override
-                                public void onDecline() {}
+                                public void onReject() {}
                             });
                         }
                     }
@@ -138,7 +168,7 @@ public class GameActivity extends Activity {
                         if (dialogManager != null && market != null && data != null) {
                             dialogManager.showMarket(market, data, new DialogManager.MarketCallback() {
                                 @Override
-                                public void onTransaction() {
+                                public void onItemPurchased(int itemIndex, int price) {
                                     if (data != null) data.recalculateEconomy();
                                 }
                             });
@@ -150,9 +180,7 @@ public class GameActivity extends Activity {
                         if (dialogManager != null) {
                             dialogManager.showSettings(new DialogManager.SettingsCallback() {
                                 @Override
-                                public void onToggleAudio(boolean sfx, boolean bgm) {}
-                                @Override
-                                public void onSaveGame() {
+                                public void onSettingsSaved() {
                                     scheduleSave();
                                 }
                             });
@@ -195,7 +223,7 @@ public class GameActivity extends Activity {
                             if (dialogManager != null) {
                                 dialogManager.showBattleResult(victory, stones, exp, new DialogManager.BattleResultCallback() {
                                     @Override
-                                    public void onDismiss() {
+                                    public void onReturn() {
                                         sceneManager.setState(GameState.SECT);
                                         try {
                                             AudioManager.getInstance(GameActivity.this).playBgm(AudioManager.THEME_SECT_PEACE);

@@ -100,6 +100,25 @@ public final class BattleScene {
 
     // Spirit Aura Buffer Renderer
     private final com.sect.idle.render.SpiritAuraBufferRenderer auraRenderer;
+    private final java.util.HashMap<String, Bitmap> unitSpriteCache = new java.util.HashMap<String, Bitmap>();
+
+    private Bitmap getUnitSprite(BattleUnit u) {
+        if (u == null) return null;
+        int elem = u.element;
+        int realm = u.source != null ? u.source.realm : 1;
+        boolean male = u.source != null ? u.source.isMale : (u.team == 0);
+        String key = (u.source != null && u.source.id != null ? u.source.id : u.name) + "_" + realm + "_" + elem + "_" + u.team;
+        Bitmap cached = unitSpriteCache.get(key);
+        if (cached == null || cached.isRecycled()) {
+            try {
+                cached = com.sect.idle.procedural.SpriteMaker.createDisciple(70, 70, elem, realm, male, 6, u.name != null ? u.name.hashCode() : 123L);
+                unitSpriteCache.put(key, cached);
+            } catch (OutOfMemoryError oom) {
+                return null;
+            }
+        }
+        return cached;
+    }
 
     public interface BattleListener {
         void onBattleEnded(boolean victory);
@@ -358,10 +377,24 @@ public final class BattleScene {
                 canvas.drawBitmap(battleSheet, srcRect, dstRect, unitPaint);
             }
         } else {
-            int bodyColor = !u.isAlive ? DEAD_COLOR : (u.team == 0 ? TEAM_PLAYER_COLOR : TEAM_ENEMY_COLOR);
-            unitPaint.setColor(bodyColor);
-            rectPool.set(x, y, x + UNIT_W, y + UNIT_H);
-            canvas.drawRoundRect(rectPool, 8f, 8f, unitPaint);
+            Bitmap uSprite = getUnitSprite(u);
+            if (uSprite != null && !uSprite.isRecycled() && u.isAlive) {
+                if (!facingRight) {
+                    canvas.save();
+                    canvas.scale(-1f, 1f, x + UNIT_W * 0.5f, y + UNIT_H * 0.5f);
+                    dstRect.set((int)x, (int)y, (int)(x + UNIT_W), (int)(y + UNIT_H));
+                    canvas.drawBitmap(uSprite, null, dstRect, unitPaint);
+                    canvas.restore();
+                } else {
+                    dstRect.set((int)x, (int)y, (int)(x + UNIT_W), (int)(y + UNIT_H));
+                    canvas.drawBitmap(uSprite, null, dstRect, unitPaint);
+                }
+            } else {
+                int bodyColor = !u.isAlive ? DEAD_COLOR : (u.team == 0 ? TEAM_PLAYER_COLOR : TEAM_ENEMY_COLOR);
+                unitPaint.setColor(bodyColor);
+                rectPool.set(x, y, x + UNIT_W, y + UNIT_H);
+                canvas.drawRoundRect(rectPool, 8f, 8f, unitPaint);
+            }
         }
 
         if (selected) {

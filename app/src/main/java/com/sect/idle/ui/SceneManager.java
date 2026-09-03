@@ -68,6 +68,7 @@ public final class SceneManager {
     }
 
     public GameState getCurrentState() { return currentState; }
+    public GameState getState() { return currentState; }
     public GameState getPreviousState() { return previousState; }
 
     public void setState(GameState state) {

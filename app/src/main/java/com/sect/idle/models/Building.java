@@ -11,6 +11,7 @@ public final class Building {
     public int level;
     public int maxLevel;
     public long upgradeCost;
+    public long cost;
     public int workers;
     public int maxWorkers;
     public float efficiency;
@@ -30,6 +31,7 @@ public final class Building {
         this.name = name != null ? name : GameConfig.BUILD_NAMES[type >= 0 && type < GameConfig.BUILD_COUNT ? type : 0];
         this.maxLevel = Math.max(1, maxLevel);
         this.upgradeCost = Math.max(0L, cost);
+        this.cost = Math.max(0L, cost);
         this.maxWorkers = Math.max(1, maxWorkers);
         this.level = 0;
         this.workers = 0;

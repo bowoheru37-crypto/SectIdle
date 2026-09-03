@@ -17,6 +17,9 @@ public final class ParticleEngineV2 {
     public static final int TYPE_SMOKE = 2;
     public static final int TYPE_FIRE = 3;
     public static final int TYPE_SPARKLE = 4;
+    public static final int TYPE_QI_PETAL = 5; // Peach blossom / Celestial petal
+    public static final int TYPE_SWORD_AURA = 6; // Sword intent streak
+    public static final int TYPE_LIGHTNING = 7; // Heavenly tribulation spark
 
     private final float[] px;
     private final float[] py;
@@ -169,6 +172,20 @@ public final class ParticleEngineV2 {
                     pvx[i] *= 0.94f;
                     pvy[i] *= 0.94f;
                     break;
+                case TYPE_QI_PETAL:
+                    pvx[i] = (float) (Math.sin(pLife[i] * 3.0f + i) * 15.0f) + windX;
+                    pvy[i] = 18.0f + windY * 0.5f;
+                    break;
+                case TYPE_SWORD_AURA:
+                    pvx[i] *= 0.92f;
+                    pvy[i] *= 0.92f;
+                    break;
+                case TYPE_LIGHTNING:
+                    pvx[i] += RNG.nextFloat(-120f, 120f) * dt;
+                    pvy[i] += RNG.nextFloat(-120f, 120f) * dt;
+                    pvx[i] *= 0.85f;
+                    pvy[i] *= 0.85f;
+                    break;
             }
 
             px[i] += pvx[i] * dt;
@@ -206,8 +223,18 @@ public final class ParticleEngineV2 {
                 case TYPE_FIRE:
                 case TYPE_GLOW:
                 case TYPE_SPARKLE:
+                case TYPE_LIGHTNING:
                     glowPaint.setColor(color);
                     canvas.drawCircle(sx, sy, ss, glowPaint);
+                    break;
+                case TYPE_SWORD_AURA:
+                    glowPaint.setColor(color);
+                    canvas.drawLine(sx - pvx[i] * 0.04f, sy - pvy[i] * 0.04f, sx + pvx[i] * 0.04f, sy + pvy[i] * 0.04f, glowPaint);
+                    canvas.drawCircle(sx, sy, ss * 0.8f, glowPaint);
+                    break;
+                case TYPE_QI_PETAL:
+                    particlePaint.setColor(color);
+                    canvas.drawOval(new android.graphics.RectF(sx - ss * 1.5f, sy - ss * 0.8f, sx + ss * 1.5f, sy + ss * 0.8f), particlePaint);
                     break;
                 case TYPE_SMOKE:
                     particlePaint.setColor(color);

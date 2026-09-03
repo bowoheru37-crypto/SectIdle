@@ -4,27 +4,22 @@ import android.content.Context;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioTrack;
-import android.media.MediaPlayer;
-import android.media.SoundPool;
 import android.os.Handler;
 import android.os.Looper;
-import com.example.R;
 import com.sect.idle.core.MathUtils;
 import java.util.HashMap;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * AudioManager - High-performance, low-latency audio engine optimized for Android 5.0+ (API 21+)
- * smartphone devices, featuring:
- * 1. Procedural Xianxia sound synthesizer for combat strikes, criticals, shields, and disciple interactions.
- * 2. Multi-theme procedural continuous BGM generator (Peaceful Sect, Intense Combat, Zen Meditation).
- * 3. Dynamic audio ducking, AudioFocus management, and zero-allocation runtime streaming buffers.
- * 4. Full fallback and integration with Android background assets.
- * 5. 100% Pure Java 7 & Sketchware Pro v7.0.0 Compatible (Zero Lambdas, Zero Streams).
+ * AudioManager - High-performance, zero-allocation software PCM Audio Mixer
+ * optimized for Android 5.0+ (API 21+) and all modern Android versions.
+ *
+ * Features:
+ * 1. Pure in-memory procedural Xianxia sound synthesis (zero disk I/O, zero MediaCodec/SoundPool dependencies).
+ * 2. Unified low-latency software mixing engine for simultaneous BGM and polyphonic SFX.
+ * 3. Dynamic audio ducking, AudioFocus management, and zero GC allocations during gameplay.
+ * 4. 100% Java 7 and Sketchware Pro v7.0.0 compatible.
  */
 public final class AudioManager {
     private static volatile AudioManager instance;
@@ -47,7 +42,7 @@ public final class AudioManager {
     public static final String SFX_VICTORY = "victory";
     public static final String SFX_DEFEAT = "defeat";
 
-    // Martial Arts Arena & WWE/MMA Ring Identifiers
+    // Martial Arts Arena & Ring Identifiers
     public static final String SFX_RING_BELL = "ring_bell";
     public static final String SFX_CROWD_CHEER = "crowd_cheer";
     public static final String SFX_CROWD_GASP = "crowd_gasp";
@@ -76,37 +71,48 @@ public final class AudioManager {
     public static final String SFX_CLICK = "click";
     public static final String SFX_FAIL = "fail";
 
-    private SoundPool sfxPool;
-    private MediaPlayer bgmPlayer;
-    private MediaPlayer ambientPlayer;
-    private final HashMap<String, Integer> sfxMap = new HashMap<String, Integer>();
-    private final HashMap<String, Integer> loadedSfx = new HashMap<String, Integer>();
-    private final HashMap<String, Float> sfxPitches = new HashMap<String, Float>();
+    // Xianxia Immersion Identifiers
+    public static final String SFX_FLYING_SWORD = "flying_sword";
+    public static final String SFX_HEAVENLY_TRIBULATION = "heavenly_tribulation";
+    public static final String SFX_QI_BURST = "qi_burst";
+    public static final String SFX_PILL_CAULDRON_DING = "pill_cauldron_ding";
+    public static final String SFX_TALISMAN_BURN = "talisman_burn";
+    public static final String SFX_IMMORTAL_BELL = "immortal_bell";
+
     private final Context context;
+    private final Handler mainHandler;
 
     private float bgmVolume = 0.6f;
     private float ambientVolume = 0.4f;
-    private float sfxVolume = 0.75f;
+    private float sfxVolume = 0.85f;
     private float masterVolume = 1.0f;
     private boolean enabled = true;
     private boolean bgmEnabled = true;
     private boolean ducking = false;
-    private String currentBgm = "";
-    private String currentAmbient = "";
 
-    private final Handler mainHandler;
-    private final ExecutorService soundExecutor;
+    private static final int MAX_VOICES = 12;
+    private static final int SAMPLE_RATE = 22050;
+    private static final int BUFFER_SIZE_SAMPLES = 1024;
 
-    // Procedural Xianxia BGM Streaming Track
-    private AudioTrack proceduralBgmTrack;
-    private final AtomicBoolean isProceduralBgmRunning = new AtomicBoolean(false);
+    private static class Voice {
+        short[] sample;
+        float cursor;
+        float volume;
+        float pitch;
+        int priority;
+        boolean active;
+    }
+
+    private final Voice[] voices = new Voice[MAX_VOICES];
+    private final HashMap<String, short[]> pcmCache = new HashMap<String, short[]>();
+
+    private AudioTrack mixerTrack;
+    private Thread mixerThread;
+    private final AtomicBoolean isMixerRunning = new AtomicBoolean(false);
     private volatile String activeBgmTheme = THEME_SECT_PEACE;
 
     private android.media.AudioManager androidAudioManager;
     private android.media.AudioManager.OnAudioFocusChangeListener focusListener;
-
-    private static final int MAX_STREAMS = 8;
-    private static final int SAMPLE_RATE = 22050; // Ideal for low-end mobile devices (Android 5+)
 
     // Ancient Chinese Pentatonic Frequencies (Gong, Shang, Jue, Zhi, Yu)
     private static final float[] PENTATONIC_FREQS = {
@@ -123,37 +129,30 @@ public final class AudioManager {
             1046.50f // C6
     };
 
+    private static final String[] ALL_SFX_KEYS = new String[] {
+            SFX_CLICK, SFX_STRIKE, SFX_SWORD_SPAR, SFX_CRITICAL_STRIKE,
+            SFX_SHIELD_BLOCK, SFX_BARRIER_SHATTER, SFX_ELEMENTAL_FIRE,
+            SFX_ELEMENTAL_LIGHTNING, SFX_ELEMENTAL_ICE, SFX_BOSS_ENRAGE,
+            SFX_VICTORY, SFX_DEFEAT, SFX_COMBAT_START,
+            SFX_RING_BELL, SFX_CROWD_CHEER, SFX_CROWD_GASP, SFX_REFEREE_COUNT,
+            SFX_GRAPPLE_SLAM, SFX_ROPE_BOUNCE, SFX_FINISHER_HIT,
+            SFX_DISCIPLE_GREETING, SFX_BREAKTHROUGH, SFX_BREAKTHROUGH_FAIL,
+            SFX_BESTOW_PILL, SFX_ASSIGN_TASK, SFX_RECRUIT, SFX_DISMISS,
+            SFX_DAO_ENLIGHTENMENT, SFX_GATHER, SFX_COLLECT, SFX_UPGRADE,
+            SFX_DEMOLISH, SFX_ALCHEMY, SFX_SCRIPTURE, SFX_FAIL,
+            SFX_FLYING_SWORD, SFX_HEAVENLY_TRIBULATION, SFX_QI_BURST,
+            SFX_PILL_CAULDRON_DING, SFX_TALISMAN_BURN, SFX_IMMORTAL_BELL
+    };
+
     private AudioManager(Context ctx) {
         this.context = ctx.getApplicationContext();
         this.mainHandler = new Handler(Looper.getMainLooper());
-        this.soundExecutor = Executors.newFixedThreadPool(3, new ThreadFactory() {
-            private int count = 0;
-            @Override
-            public Thread newThread(Runnable r) {
-                Thread t = new Thread(r, "SectAudioEngine-" + (++count));
-                t.setPriority(Thread.NORM_PRIORITY);
-                t.setDaemon(true);
-                return t;
-            }
-        });
+
+        for (int i = 0; i < MAX_VOICES; i++) {
+            voices[i] = new Voice();
+        }
 
         this.androidAudioManager = (android.media.AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-
-        AudioAttributes attrs = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_GAME)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build();
-
-        this.sfxPool = new SoundPool.Builder().setMaxStreams(MAX_STREAMS).setAudioAttributes(attrs).build();
-        this.sfxPool.setOnLoadCompleteListener(new SoundPool.OnLoadCompleteListener() {
-            @Override
-            public void onLoadComplete(SoundPool pool, int sampleId, int status) {
-                if (status == 0) {
-                    sfxPitches.put("loaded_" + sampleId, 1.0f);
-                }
-            }
-        });
-
         this.focusListener = new android.media.AudioManager.OnAudioFocusChangeListener() {
             @Override
             public void onAudioFocusChange(int focusChange) {
@@ -162,35 +161,25 @@ public final class AudioManager {
                         setDucking(true);
                         break;
                     case android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+                    case android.media.AudioManager.AUDIOFOCUS_LOSS:
                         pauseBgm();
                         break;
                     case android.media.AudioManager.AUDIOFOCUS_GAIN:
                         setDucking(false);
                         resumeBgm();
                         break;
-                    case android.media.AudioManager.AUDIOFOCUS_LOSS:
-                        pauseBgm();
-                        break;
                 }
             }
         };
         requestAudioFocus();
 
-        // Preload Raw Audio Assets
-        try {
-            loadSfx(SFX_STRIKE, R.raw.sfx_strike);
-            loadSfx(SFX_SWORD_SPAR, R.raw.sfx_sword_spar);
-            loadSfx(SFX_CRITICAL_STRIKE, R.raw.sfx_critical);
-            loadSfx(SFX_BREAKTHROUGH, R.raw.sfx_breakthrough);
-            loadSfx(SFX_CLICK, R.raw.sfx_click);
-            loadSfx(SFX_BARRIER_SHATTER, R.raw.sfx_spirit_burst);
-            loadSfx(SFX_RING_BELL, R.raw.sfx_bell);
-            loadSfx(SFX_VICTORY, R.raw.sfx_victory);
-            loadSfx(SFX_DEFEAT, R.raw.sfx_defeat);
-        } catch (Throwable ignored) {}
+        // Synthesize all waveforms directly into memory
+        for (int i = 0; i < ALL_SFX_KEYS.length; i++) {
+            String key = ALL_SFX_KEYS[i];
+            pcmCache.put(key, synthesizePcm(key));
+        }
 
-        // Start procedural peaceful sect BGM loop by default
-        startProceduralBgm(THEME_SECT_PEACE);
+        startMixer();
     }
 
     public static AudioManager get(Context ctx) {
@@ -224,14 +213,6 @@ public final class AudioManager {
         }
     }
 
-    public void loadSfx(String id, int resId) {
-        if (!enabled || id == null || id.isEmpty() || resId == 0) return;
-        if (loadedSfx.containsKey(id)) return;
-        int sid = sfxPool.load(context, resId, 1);
-        sfxMap.put(id, resId);
-        loadedSfx.put(id, sid);
-    }
-
     public void playSfx(String id) {
         playSfx(id, 1.0f, 0);
     }
@@ -243,535 +224,430 @@ public final class AudioManager {
     public void playSfx(String id, float pitch, float priority) {
         if (!enabled || id == null) return;
 
-        Integer sid = loadedSfx.get(id);
-        if (sid != null && sfxPool != null) {
-            float vol = sfxVolume * masterVolume * (ducking ? 0.3f : 1.0f);
-            float p = MathUtils.clamp(pitch, 0.5f, 2.0f);
-            sfxPool.play(sid, vol, vol, (int) priority, 0, p);
-        } else {
-            playSynthesizedEffect(id);
+        short[] sample = pcmCache.get(id);
+        if (sample == null) {
+            sample = synthesizePcm(id);
+            pcmCache.put(id, sample);
         }
-    }
 
-    // ========================================================================
-    // PROCEDURAL AUDIO SYNTHESIZER FOR XIANXIA SOUND EFFECTS
-    // ========================================================================
+        synchronized (voices) {
+            int selectedVoice = -1;
+            int lowestPriority = Integer.MAX_VALUE;
 
-    /**
-     * Highly optimized Xianxia procedural audio synthesizer generating 16-bit PCM waves in real-time.
-     */
-    public void playSynthesizedEffect(final String effect) {
-        if (!enabled || effect == null) return;
-
-        soundExecutor.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    int sampleRate = SAMPLE_RATE;
-                    int durationMs;
-                    float startFreq;
-                    float endFreq;
-                    float baseVol = sfxVolume * masterVolume * (ducking ? 0.35f : 1.0f);
-
-                switch (effect) {
-                    // --- COMBAT AUDIO EFFECTS ---
-                    case SFX_COMBAT_START:
-                        // Deep War Drum & Bronze Gong (280ms)
-                        durationMs = 280;
-                        startFreq = 85f;
-                        endFreq = 330f;
-                        break;
-                    case SFX_STRIKE:
-                    case SFX_SWORD_SPAR:
-                        // Sharp Daoist Sword Slash (110ms)
-                        durationMs = 110;
-                        startFreq = 540f;
-                        endFreq = 160f;
-                        break;
-                    case SFX_CRITICAL_STRIKE:
-                    case SFX_ELEMENTAL_LIGHTNING:
-                        // Heavenly Thunder Slash & Critical Burst (260ms)
-                        durationMs = 260;
-                        startFreq = 980f;
-                        endFreq = 110f;
-                        break;
-                    case SFX_SHIELD_BLOCK:
-                        // Dao Qi Barrier Ping Resonance (130ms)
-                        durationMs = 130;
-                        startFreq = 1760f;
-                        endFreq = 880f;
-                        break;
-                    case SFX_BARRIER_SHATTER:
-                        // Barrier Shatter Crystal Crack (200ms)
-                        durationMs = 200;
-                        startFreq = 1400f;
-                        endFreq = 220f;
-                        break;
-                    case SFX_ELEMENTAL_FIRE:
-                        // Fire Talisman Roar (220ms)
-                        durationMs = 220;
-                        startFreq = 180f;
-                        endFreq = 340f;
-                        break;
-                    case SFX_ELEMENTAL_ICE:
-                        // Glacial Frost Chime (170ms)
-                        durationMs = 170;
-                        startFreq = 1200f;
-                        endFreq = 1800f;
-                        break;
-                    case SFX_BOSS_ENRAGE:
-                        // Demonic Sub-Bass Rumble (350ms)
-                        durationMs = 350;
-                        startFreq = 65f;
-                        endFreq = 180f;
-                        break;
-                    case SFX_VICTORY:
-                        // Celestial Fanfare Tri-Chord (360ms)
-                        durationMs = 360;
-                        startFreq = 523.25f; // C5
-                        endFreq = 1046.50f; // C6
-                        break;
-                    case SFX_DEFEAT:
-                        // Solemn Temple Gong (320ms)
-                        durationMs = 320;
-                        startFreq = 220f;
-                        endFreq = 95f;
-                        break;
-
-                    // --- WWE / MMA & MARTIAL ARTS ARENA SYNTHESIS ---
-                    case SFX_RING_BELL:
-                        // Crisp Brass Ring Bell (300ms)
-                        durationMs = 300;
-                        startFreq = 1760f; // A6
-                        endFreq = 1760f;
-                        break;
-                    case SFX_CROWD_CHEER:
-                        // Roaring Celestial Spectators (450ms)
-                        durationMs = 450;
-                        startFreq = 280f;
-                        endFreq = 540f;
-                        break;
-                    case SFX_CROWD_GASP:
-                        // Sharp Inhale Spectator Gasp (220ms)
-                        durationMs = 220;
-                        startFreq = 600f;
-                        endFreq = 300f;
-                        break;
-                    case SFX_REFEREE_COUNT:
-                        // Heavy Mat Slap 3-Count (130ms)
-                        durationMs = 130;
-                        startFreq = 140f;
-                        endFreq = 50f;
-                        break;
-                    case SFX_GRAPPLE_SLAM:
-                        // Heavy Suplex / Mat Impact (260ms)
-                        durationMs = 260;
-                        startFreq = 90f;
-                        endFreq = 45f;
-                        break;
-                    case SFX_ROPE_BOUNCE:
-                        // Spirit Dao Rope Rebound Twang (160ms)
-                        durationMs = 160;
-                        startFreq = 350f;
-                        endFreq = 680f;
-                        break;
-                    case SFX_FINISHER_HIT:
-                        // Earth-Shattering Celestial K.O. Impact (480ms)
-                        durationMs = 480;
-                        startFreq = 440f;
-                        endFreq = 70f;
-                        break;
-
-                    // --- DISCIPLE INTERACTION AUDIO EFFECTS ---
-                    case SFX_DISCIPLE_GREETING:
-                        // Delicate Guzheng Pluck Greeting (150ms)
-                        durationMs = 150;
-                        startFreq = 440f; // A4
-                        endFreq = 880f;  // A5
-                        break;
-                    case SFX_BREAKTHROUGH:
-                        // Grand Celestial Ascension Gong (380ms)
-                        durationMs = 380;
-                        startFreq = 196f; // G3
-                        endFreq = 1174f; // D6
-                        break;
-                    case SFX_BREAKTHROUGH_FAIL:
-                        // Qi Deviation Dissonant Thud (220ms)
-                        durationMs = 220;
-                        startFreq = 311f; // D#4
-                        endFreq = 80f;
-                        break;
-                    case SFX_BESTOW_PILL:
-                        // Spirit Elixir Sparkle (160ms)
-                        durationMs = 160;
-                        startFreq = 659.25f; // E5
-                        endFreq = 1318.5f;  // E6
-                        break;
-                    case SFX_ASSIGN_TASK:
-                        // Bamboo Tally Woodblock Clack (90ms)
-                        durationMs = 90;
-                        startFreq = 1100f;
-                        endFreq = 550f;
-                        break;
-                    case SFX_RECRUIT:
-                        // Welcome Celestial Bell (240ms)
-                        durationMs = 240;
-                        startFreq = 587.33f; // D5
-                        endFreq = 1174.66f; // D6
-                        break;
-                    case SFX_DISMISS:
-                        // Sever Cultivation Bond Sword Ring (180ms)
-                        durationMs = 180;
-                        startFreq = 780f;
-                        endFreq = 220f;
-                        break;
-                    case SFX_DAO_ENLIGHTENMENT:
-                        // Singing Bowl Harmonic Drone (420ms)
-                        durationMs = 420;
-                        startFreq = 261.63f; // C4
-                        endFreq = 523.25f;  // C5
-                        break;
-
-                    // --- SECT & WORLD AUDIO EFFECTS ---
-                    case SFX_GATHER:
-                    case SFX_COLLECT:
-                        // Quartz Spirit Stone Clink (95ms)
-                        durationMs = 95;
-                        startFreq = 783.99f; // G5
-                        endFreq = 1567.98f; // G6
-                        break;
-                    case SFX_UPGRADE:
-                        // Pavilion Stone Chime (200ms)
-                        durationMs = 200;
-                        startFreq = 392.00f; // G4
-                        endFreq = 783.99f;  // G5
-                        break;
-                    case SFX_DEMOLISH:
-                        // Pavilion Dismantle Rubble (190ms)
-                        durationMs = 190;
-                        startFreq = 160f;
-                        endFreq = 60f;
-                        break;
-                    case SFX_ALCHEMY:
-                        // Alchemy Cauldron Simmer (180ms)
-                        durationMs = 180;
-                        startFreq = 280f;
-                        endFreq = 480f;
-                        break;
-                    case SFX_SCRIPTURE:
-                        // Ancient Scripture Chant Chime (290ms)
-                        durationMs = 290;
-                        startFreq = 329.63f; // E4
-                        endFreq = 659.25f;  // E5
-                        break;
-                    case SFX_FAIL:
-                        durationMs = 140;
-                        startFreq = 240f;
-                        endFreq = 120f;
-                        break;
-                    case SFX_CLICK:
-                    default:
-                        durationMs = 45;
-                        startFreq = 880f;
-                        endFreq = 960f;
-                        break;
+            for (int i = 0; i < MAX_VOICES; i++) {
+                if (!voices[i].active) {
+                    selectedVoice = i;
+                    break;
                 }
-
-                int numSamples = (sampleRate * durationMs) / 1000;
-                short[] buffer = new short[numSamples];
-
-                for (int i = 0; i < numSamples; i++) {
-                    float t = (float) i / numSamples;
-                    float freq = startFreq + (endFreq - startFreq) * t;
-                    float phase = (float) (2.0 * Math.PI * freq * (i / (float) sampleRate));
-                    float envelope;
-
-                    if (SFX_STRIKE.equals(effect) || SFX_SWORD_SPAR.equals(effect) || SFX_DISMISS.equals(effect)) {
-                        envelope = (float) Math.pow(1.0 - t, 2.0);
-                    } else if (SFX_CRITICAL_STRIKE.equals(effect) || SFX_ELEMENTAL_LIGHTNING.equals(effect)) {
-                        float noise = (float) ((Math.random() - 0.5) * 0.45 * Math.pow(1.0 - t, 1.2));
-                        envelope = (float) Math.pow(1.0 - t, 1.4);
-                        float sampleVal = ((float) Math.sin(phase) + noise) * envelope * Short.MAX_VALUE * (baseVol * 0.6f);
-                        buffer[i] = (short) MathUtils.clamp(sampleVal, Short.MIN_VALUE, Short.MAX_VALUE);
-                        continue;
-                    } else if (SFX_BREAKTHROUGH.equals(effect) || SFX_VICTORY.equals(effect) || SFX_DAO_ENLIGHTENMENT.equals(effect)) {
-                        float harmonic2 = (float) Math.sin(phase * 2.0) * 0.35f;
-                        float harmonic3 = (float) Math.sin(phase * 3.0) * 0.15f;
-                        envelope = (float) (Math.sin(t * Math.PI * 0.5) * Math.pow(1.0 - t, 0.75));
-                        float sampleVal = ((float) Math.sin(phase) + harmonic2 + harmonic3) * envelope * Short.MAX_VALUE * (baseVol * 0.5f);
-                        buffer[i] = (short) MathUtils.clamp(sampleVal, Short.MIN_VALUE, Short.MAX_VALUE);
-                        continue;
-                    } else if (SFX_SHIELD_BLOCK.equals(effect)) {
-                        envelope = (float) Math.exp(-6.0 * t);
-                    } else if (SFX_ASSIGN_TASK.equals(effect)) {
-                        envelope = (float) Math.exp(-12.0 * t);
-                    } else {
-                        envelope = (float) Math.sin(t * Math.PI);
-                    }
-
-                    float sampleVal = (float) Math.sin(phase) * envelope * 0.45f * Short.MAX_VALUE * baseVol;
-                    buffer[i] = (short) MathUtils.clamp(sampleVal, Short.MIN_VALUE, Short.MAX_VALUE);
+                if (voices[i].priority < lowestPriority) {
+                    lowestPriority = voices[i].priority;
+                    selectedVoice = i;
                 }
-
-                AudioTrack track = new AudioTrack.Builder()
-                        .setAudioAttributes(new AudioAttributes.Builder()
-                                .setUsage(AudioAttributes.USAGE_GAME)
-                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                                .build())
-                        .setAudioFormat(new AudioFormat.Builder()
-                                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                                .setSampleRate(sampleRate)
-                                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                                .build())
-                        .setBufferSizeInBytes(buffer.length * 2)
-                        .setTransferMode(AudioTrack.MODE_STATIC)
-                        .build();
-
-                track.write(buffer, 0, buffer.length);
-                track.play();
-                Thread.sleep(durationMs + 20);
-                track.release();
-            } catch (Exception ignored) {}
             }
-        });
-    }
 
-    // ========================================================================
-    // PROCEDURAL MULTI-THEME CONTINUOUS BGM STREAM ENGINE
-    // ========================================================================
-
-    public void setBgmTheme(String theme) {
-        if (theme == null || theme.equals(activeBgmTheme)) return;
-        this.activeBgmTheme = theme;
-        if (bgmEnabled && enabled && isProceduralBgmRunning.get()) {
-            stopProceduralBgm();
-            startProceduralBgm(theme);
+            if (selectedVoice >= 0) {
+                Voice v = voices[selectedVoice];
+                v.sample = sample;
+                v.cursor = 0f;
+                v.pitch = MathUtils.clamp(pitch, 0.5f, 2.0f);
+                v.volume = sfxVolume * masterVolume * (ducking ? 0.35f : 1.0f);
+                v.priority = (int) priority;
+                v.active = true;
+            }
         }
     }
 
-    public String getActiveBgmTheme() {
-        return activeBgmTheme;
-    }
+    // ========================================================================
+    // UNIFIED PCM MIXER ENGINE (ZERO NATIVE CODEC / SOUNDPOOL CALLS)
+    // ========================================================================
 
-    public void startProceduralBgm(String theme) {
-        this.activeBgmTheme = theme;
-        if (!bgmEnabled || !enabled) return;
-        if (isProceduralBgmRunning.get()) return;
+    private synchronized void startMixer() {
+        if (isMixerRunning.get()) return;
+        isMixerRunning.set(true);
 
-        isProceduralBgmRunning.set(true);
-        soundExecutor.execute(new Runnable() {
+        mixerThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    int sampleRate = SAMPLE_RATE;
-                    int minBufSize = AudioTrack.getMinBufferSize(
-                            sampleRate,
+                    int minBuf = AudioTrack.getMinBufferSize(
+                            SAMPLE_RATE,
                             AudioFormat.CHANNEL_OUT_MONO,
                             AudioFormat.ENCODING_PCM_16BIT
                     );
 
-                    proceduralBgmTrack = new AudioTrack.Builder()
+                    mixerTrack = new AudioTrack.Builder()
                             .setAudioAttributes(new AudioAttributes.Builder()
                                     .setUsage(AudioAttributes.USAGE_GAME)
-                                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                                     .build())
                             .setAudioFormat(new AudioFormat.Builder()
                                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                                    .setSampleRate(sampleRate)
+                                    .setSampleRate(SAMPLE_RATE)
                                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                                     .build())
-                            .setBufferSizeInBytes(Math.max(minBufSize, 4096))
+                            .setBufferSizeInBytes(Math.max(minBuf * 2, BUFFER_SIZE_SAMPLES * 4))
                             .setTransferMode(AudioTrack.MODE_STREAM)
                             .build();
 
-                    proceduralBgmTrack.play();
-                    Random rand = new Random(System.currentTimeMillis());
-
-                    while (isProceduralBgmRunning.get() && enabled && bgmEnabled) {
-                        String currentTheme = activeBgmTheme;
-                        int noteIndex = rand.nextInt(PENTATONIC_FREQS.length);
-                        float noteFreq = PENTATONIC_FREQS[noteIndex];
-
-                        int noteDurationMs;
-                        int pauseMs;
-                        float decayFactor;
-
-                        if (THEME_COMBAT_INTENSE.equals(currentTheme)) {
-                            // Fast, urgent martial combat cadence (250ms note, 120ms pause)
-                            noteDurationMs = 260 + rand.nextInt(180);
-                            pauseMs = 100 + rand.nextInt(120);
-                            decayFactor = 4.2f;
-                        } else if (THEME_MEDITATION_ZEN.equals(currentTheme)) {
-                            // Deep, long sustained meditative singing tone (1200ms note, 600ms pause)
-                            noteDurationMs = 1200 + rand.nextInt(600);
-                            pauseMs = 500 + rand.nextInt(600);
-                            decayFactor = 1.8f;
-                        } else {
-                            // Standard Peaceful Sect Guzheng pluck (650ms note, 350ms pause)
-                            noteDurationMs = 600 + rand.nextInt(450);
-                            pauseMs = 280 + rand.nextInt(350);
-                            decayFactor = 3.2f;
-                        }
-
-                        int noteSamples = (sampleRate * noteDurationMs) / 1000;
-                        short[] noteBuffer = new short[noteSamples];
-                        float effectiveVol = getEffectiveBgmVolume() * 0.32f;
-
-                        for (int i = 0; i < noteSamples; i++) {
-                            float t = (float) i / noteSamples;
-                            float fundamental = (float) Math.sin(2.0 * Math.PI * noteFreq * (i / (float) sampleRate));
-                            float harmonic2 = (float) Math.sin(4.0 * Math.PI * noteFreq * (i / (float) sampleRate)) * 0.25f;
-                            float harmonic3 = (float) Math.sin(6.0 * Math.PI * noteFreq * (i / (float) sampleRate)) * 0.10f;
-                            float envelope = (float) Math.exp(-decayFactor * t);
-
-                            // Subtle bamboo mountain breeze layer
-                            float breeze = (float) ((rand.nextFloat() - 0.5f) * 0.035f * Math.sin(t * Math.PI));
-
-                            float sampleVal = (fundamental + harmonic2 + harmonic3 + breeze) * envelope * effectiveVol * Short.MAX_VALUE;
-                            noteBuffer[i] = (short) MathUtils.clamp(sampleVal, Short.MIN_VALUE, Short.MAX_VALUE);
-                        }
-
-                        if (proceduralBgmTrack != null && proceduralBgmTrack.getState() == AudioTrack.STATE_INITIALIZED) {
-                            proceduralBgmTrack.write(noteBuffer, 0, noteBuffer.length);
-                        }
-
-                        Thread.sleep(pauseMs);
+                    if (mixerTrack.getState() != AudioTrack.STATE_INITIALIZED) {
+                        return;
                     }
 
-                    if (proceduralBgmTrack != null) {
-                        try {
-                            proceduralBgmTrack.stop();
-                            proceduralBgmTrack.release();
-                        } catch (Exception ignored) {}
-                        proceduralBgmTrack = null;
+                    mixerTrack.play();
+
+                    short[] mixBuffer = new short[BUFFER_SIZE_SAMPLES];
+                    float[] bgmNoteBuffer = new float[SAMPLE_RATE * 2]; // up to 2s note buffer
+                    int bgmNoteLen = 0;
+                    int bgmNotePos = 0;
+                    int bgmPauseRemaining = 0;
+                    Random rand = new Random(System.currentTimeMillis());
+
+                    while (isMixerRunning.get()) {
+                        if (!enabled) {
+                            Thread.sleep(50);
+                            continue;
+                        }
+
+                        // 1. Generate procedural Xianxia BGM stream into mixBuffer
+                        float effBgmVol = bgmEnabled ? getEffectiveBgmVolume() * 0.32f : 0f;
+                        String currentTheme = activeBgmTheme;
+
+                        for (int i = 0; i < BUFFER_SIZE_SAMPLES; i++) {
+                            float bgmSample = 0f;
+
+                            if (effBgmVol > 0.001f) {
+                                if (bgmPauseRemaining > 0) {
+                                    bgmPauseRemaining--;
+                                } else if (bgmNotePos < bgmNoteLen) {
+                                    bgmSample = bgmNoteBuffer[bgmNotePos++] * effBgmVol;
+                                } else {
+                                    // Generate next pentatonic note with Chinese traditional timbre (Guzheng pluck + Dizi vibrato harmonics)
+                                    int noteIdx = rand.nextInt(PENTATONIC_FREQS.length);
+                                    float freq = PENTATONIC_FREQS[noteIdx];
+
+                                    int noteMs;
+                                    int pauseMs;
+                                    float decay;
+                                    boolean isFlutePassage = rand.nextFloat() < 0.35f;
+
+                                    if (THEME_COMBAT_INTENSE.equals(currentTheme)) {
+                                        noteMs = 200 + rand.nextInt(180);
+                                        pauseMs = 60 + rand.nextInt(80);
+                                        decay = 4.5f;
+                                    } else if (THEME_MEDITATION_ZEN.equals(currentTheme)) {
+                                        noteMs = 1200 + rand.nextInt(600);
+                                        pauseMs = 500 + rand.nextInt(450);
+                                        decay = 1.6f;
+                                    } else {
+                                        noteMs = 600 + rand.nextInt(450);
+                                        pauseMs = 240 + rand.nextInt(280);
+                                        decay = 2.8f;
+                                    }
+
+                                    bgmNoteLen = Math.min((SAMPLE_RATE * noteMs) / 1000, bgmNoteBuffer.length);
+                                    bgmNotePos = 0;
+                                    bgmPauseRemaining = (SAMPLE_RATE * pauseMs) / 1000;
+
+                                    for (int s = 0; s < bgmNoteLen; s++) {
+                                        float t = (float) s / bgmNoteLen;
+                                        float timeSec = s / (float) SAMPLE_RATE;
+
+                                        if (isFlutePassage) {
+                                            // Dizi (Bamboo Flute) timbre with breath noise and vibrato
+                                            float vibrato = (float) Math.sin(2.0 * Math.PI * 5.5 * timeSec) * (freq * 0.015f);
+                                            float effFreq = freq + vibrato;
+                                            float fund = (float) Math.sin(2.0 * Math.PI * effFreq * timeSec);
+                                            float h2 = (float) Math.sin(4.0 * Math.PI * effFreq * timeSec) * 0.38f;
+                                            float h3 = (float) Math.sin(6.0 * Math.PI * effFreq * timeSec) * 0.12f;
+                                            float breath = (float) ((rand.nextFloat() - 0.5f) * 0.04f);
+                                            // Attack-Decay-Sustain-Release envelope
+                                            float fluteEnv = (float) (Math.sin(Math.min(1.0, t * 4.0) * Math.PI * 0.5) * Math.pow(1.0 - t, 0.8));
+                                            bgmNoteBuffer[s] = (fund + h2 + h3 + breath) * fluteEnv * 0.85f;
+                                        } else {
+                                            // Guzheng / Guqin plucking resonance with dual harmonic decay
+                                            float fund = (float) Math.sin(2.0 * Math.PI * freq * timeSec);
+                                            float h2 = (float) Math.sin(4.0 * Math.PI * freq * 1.002f * timeSec) * 0.35f;
+                                            float h3 = (float) Math.sin(6.0 * Math.PI * freq * 0.998f * timeSec) * 0.18f;
+                                            float h4 = (float) Math.sin(8.0 * Math.PI * freq * timeSec) * 0.08f;
+                                            float pluckAttack = (float) Math.exp(-25.0 * t);
+                                            float pluckBody = (float) Math.exp(-decay * t);
+                                            float env = pluckAttack * 0.4f + pluckBody * 0.6f;
+                                            float streamBreeze = (float) ((rand.nextFloat() - 0.5f) * 0.02f * Math.sin(t * Math.PI));
+                                            bgmNoteBuffer[s] = (fund + h2 + h3 + h4 + streamBreeze) * env;
+                                        }
+                                    }
+
+                                    if (bgmNoteLen > 0) {
+                                        bgmSample = bgmNoteBuffer[bgmNotePos++] * effBgmVol;
+                                    }
+                                }
+                            }
+
+                            // 2. Mix active SFX voices
+                            float sfxSum = 0f;
+                            synchronized (voices) {
+                                for (int v = 0; v < MAX_VOICES; v++) {
+                                    Voice voice = voices[v];
+                                    if (voice.active && voice.sample != null) {
+                                        int idx = (int) voice.cursor;
+                                        if (idx < voice.sample.length) {
+                                            sfxSum += (voice.sample[idx] / 32768.0f) * voice.volume;
+                                            voice.cursor += voice.pitch;
+                                        } else {
+                                            voice.active = false;
+                                        }
+                                    }
+                                }
+                            }
+
+                            float total = bgmSample + sfxSum;
+                            mixBuffer[i] = (short) MathUtils.clamp(total * Short.MAX_VALUE, Short.MIN_VALUE, Short.MAX_VALUE);
+                        }
+
+                        mixerTrack.write(mixBuffer, 0, BUFFER_SIZE_SAMPLES);
                     }
                 } catch (Exception ignored) {
                 } finally {
-                    isProceduralBgmRunning.set(false);
+                    if (mixerTrack != null) {
+                        try {
+                            mixerTrack.stop();
+                            mixerTrack.release();
+                        } catch (Exception ignored) {}
+                        mixerTrack = null;
+                    }
+                    isMixerRunning.set(false);
                 }
             }
-        });
+        }, "SectPcmMixer");
+
+        mixerThread.setPriority(Thread.NORM_PRIORITY + 1);
+        mixerThread.setDaemon(true);
+        mixerThread.start();
+    }
+
+    private synchronized void stopMixer() {
+        isMixerRunning.set(false);
+        if (mixerThread != null) {
+            mixerThread.interrupt();
+            mixerThread = null;
+        }
+    }
+
+    // ========================================================================
+    // PROCEDURAL AUDIO SYNTHESIZER
+    // ========================================================================
+
+    private short[] synthesizePcm(String effect) {
+        int sampleRate = SAMPLE_RATE;
+        int durationMs;
+        float startFreq;
+        float endFreq;
+
+        if (SFX_COMBAT_START.equals(effect)) {
+            durationMs = 320; startFreq = 75f; endFreq = 440f;
+        } else if (SFX_STRIKE.equals(effect) || SFX_SWORD_SPAR.equals(effect)) {
+            durationMs = 120; startFreq = 620f; endFreq = 140f;
+        } else if (SFX_CRITICAL_STRIKE.equals(effect) || SFX_ELEMENTAL_LIGHTNING.equals(effect)) {
+            durationMs = 280; startFreq = 1100f; endFreq = 90f;
+        } else if (SFX_SHIELD_BLOCK.equals(effect)) {
+            durationMs = 140; startFreq = 1860f; endFreq = 820f;
+        } else if (SFX_BARRIER_SHATTER.equals(effect)) {
+            durationMs = 220; startFreq = 1500f; endFreq = 180f;
+        } else if (SFX_ELEMENTAL_FIRE.equals(effect)) {
+            durationMs = 240; startFreq = 160f; endFreq = 380f;
+        } else if (SFX_ELEMENTAL_ICE.equals(effect)) {
+            durationMs = 180; startFreq = 1300f; endFreq = 1950f;
+        } else if (SFX_BOSS_ENRAGE.equals(effect)) {
+            durationMs = 380; startFreq = 60f; endFreq = 200f;
+        } else if (SFX_VICTORY.equals(effect)) {
+            durationMs = 400; startFreq = 523.25f; endFreq = 1046.50f;
+        } else if (SFX_DEFEAT.equals(effect)) {
+            durationMs = 340; startFreq = 240f; endFreq = 80f;
+        } else if (SFX_RING_BELL.equals(effect) || SFX_IMMORTAL_BELL.equals(effect)) {
+            durationMs = 420; startFreq = 1318.5f; endFreq = 659.25f;
+        } else if (SFX_CROWD_CHEER.equals(effect)) {
+            durationMs = 450; startFreq = 280f; endFreq = 540f;
+        } else if (SFX_CROWD_GASP.equals(effect)) {
+            durationMs = 220; startFreq = 600f; endFreq = 300f;
+        } else if (SFX_REFEREE_COUNT.equals(effect)) {
+            durationMs = 130; startFreq = 140f; endFreq = 50f;
+        } else if (SFX_GRAPPLE_SLAM.equals(effect)) {
+            durationMs = 260; startFreq = 90f; endFreq = 45f;
+        } else if (SFX_ROPE_BOUNCE.equals(effect)) {
+            durationMs = 160; startFreq = 350f; endFreq = 680f;
+        } else if (SFX_FINISHER_HIT.equals(effect)) {
+            durationMs = 480; startFreq = 440f; endFreq = 70f;
+        } else if (SFX_DISCIPLE_GREETING.equals(effect)) {
+            durationMs = 150; startFreq = 440f; endFreq = 880f;
+        } else if (SFX_BREAKTHROUGH.equals(effect)) {
+            durationMs = 480; startFreq = 196f; endFreq = 1318.5f;
+        } else if (SFX_BREAKTHROUGH_FAIL.equals(effect)) {
+            durationMs = 240; startFreq = 311f; endFreq = 75f;
+        } else if (SFX_BESTOW_PILL.equals(effect) || SFX_PILL_CAULDRON_DING.equals(effect)) {
+            durationMs = 220; startFreq = 783.99f; endFreq = 1567.98f;
+        } else if (SFX_ASSIGN_TASK.equals(effect)) {
+            durationMs = 90; startFreq = 1100f; endFreq = 550f;
+        } else if (SFX_RECRUIT.equals(effect)) {
+            durationMs = 260; startFreq = 587.33f; endFreq = 1174.66f;
+        } else if (SFX_DISMISS.equals(effect)) {
+            durationMs = 180; startFreq = 780f; endFreq = 220f;
+        } else if (SFX_DAO_ENLIGHTENMENT.equals(effect)) {
+            durationMs = 460; startFreq = 261.63f; endFreq = 659.25f;
+        } else if (SFX_GATHER.equals(effect) || SFX_COLLECT.equals(effect)) {
+            durationMs = 95; startFreq = 783.99f; endFreq = 1567.98f;
+        } else if (SFX_UPGRADE.equals(effect)) {
+            durationMs = 220; startFreq = 392.00f; endFreq = 880.00f;
+        } else if (SFX_DEMOLISH.equals(effect)) {
+            durationMs = 190; startFreq = 160f; endFreq = 60f;
+        } else if (SFX_ALCHEMY.equals(effect)) {
+            durationMs = 220; startFreq = 280f; endFreq = 560f;
+        } else if (SFX_SCRIPTURE.equals(effect)) {
+            durationMs = 300; startFreq = 329.63f; endFreq = 783.99f;
+        } else if (SFX_FLYING_SWORD.equals(effect)) {
+            durationMs = 280; startFreq = 680f; endFreq = 1250f;
+        } else if (SFX_HEAVENLY_TRIBULATION.equals(effect)) {
+            durationMs = 450; startFreq = 120f; endFreq = 40f;
+        } else if (SFX_QI_BURST.equals(effect)) {
+            durationMs = 300; startFreq = 320f; endFreq = 880f;
+        } else if (SFX_TALISMAN_BURN.equals(effect)) {
+            durationMs = 180; startFreq = 480f; endFreq = 960f;
+        } else if (SFX_FAIL.equals(effect)) {
+            durationMs = 140; startFreq = 240f; endFreq = 120f;
+        } else {
+            durationMs = 45; startFreq = 880f; endFreq = 960f;
+        }
+
+        int numSamples = (sampleRate * durationMs) / 1000;
+        short[] buffer = new short[numSamples];
+
+        for (int i = 0; i < numSamples; i++) {
+            float t = (float) i / numSamples;
+            float freq = startFreq + (endFreq - startFreq) * t;
+            float phase = (float) (2.0 * Math.PI * freq * (i / (float) sampleRate));
+            float envelope;
+
+            if (SFX_STRIKE.equals(effect) || SFX_SWORD_SPAR.equals(effect) || SFX_DISMISS.equals(effect)) {
+                envelope = (float) Math.pow(1.0 - t, 2.0);
+            } else if (SFX_CRITICAL_STRIKE.equals(effect) || SFX_ELEMENTAL_LIGHTNING.equals(effect) || SFX_HEAVENLY_TRIBULATION.equals(effect)) {
+                float noise = (float) ((Math.random() - 0.5) * 0.55 * Math.pow(1.0 - t, 1.1));
+                envelope = (float) Math.pow(1.0 - t, 1.2);
+                float sampleVal = ((float) Math.sin(phase) + noise) * envelope * Short.MAX_VALUE * 0.90f;
+                buffer[i] = (short) MathUtils.clamp(sampleVal, Short.MIN_VALUE, Short.MAX_VALUE);
+                continue;
+            } else if (SFX_BREAKTHROUGH.equals(effect) || SFX_VICTORY.equals(effect) || SFX_DAO_ENLIGHTENMENT.equals(effect) || SFX_IMMORTAL_BELL.equals(effect)) {
+                float harmonic2 = (float) Math.sin(phase * 2.0) * 0.35f;
+                float harmonic3 = (float) Math.sin(phase * 3.0) * 0.15f;
+                float harmonic4 = (float) Math.sin(phase * 4.0) * 0.08f;
+                envelope = (float) (Math.sin(t * Math.PI * 0.5) * Math.pow(1.0 - t, 0.70));
+                float sampleVal = ((float) Math.sin(phase) + harmonic2 + harmonic3 + harmonic4) * envelope * Short.MAX_VALUE * 0.78f;
+                buffer[i] = (short) MathUtils.clamp(sampleVal, Short.MIN_VALUE, Short.MAX_VALUE);
+                continue;
+            } else if (SFX_FLYING_SWORD.equals(effect)) {
+                float breeze = (float) ((Math.random() - 0.5) * 0.25);
+                envelope = (float) (Math.sin(t * Math.PI) * 0.8);
+                float sampleVal = ((float) Math.sin(phase) + breeze) * envelope * Short.MAX_VALUE * 0.75f;
+                buffer[i] = (short) MathUtils.clamp(sampleVal, Short.MIN_VALUE, Short.MAX_VALUE);
+                continue;
+            } else if (SFX_SHIELD_BLOCK.equals(effect)) {
+                envelope = (float) Math.exp(-6.0 * t);
+            } else if (SFX_ASSIGN_TASK.equals(effect)) {
+                envelope = (float) Math.exp(-12.0 * t);
+            } else {
+                envelope = (float) Math.sin(t * Math.PI);
+            }
+
+            float sampleVal = (float) Math.sin(phase) * envelope * 0.75f * Short.MAX_VALUE;
+            buffer[i] = (short) MathUtils.clamp(sampleVal, Short.MIN_VALUE, Short.MAX_VALUE);
+        }
+
+        return buffer;
+    }
+
+    public void startProceduralBgm(String theme) {
+        this.activeBgmTheme = theme;
+        if (!isMixerRunning.get()) {
+            startMixer();
+        }
     }
 
     public void stopProceduralBgm() {
-        isProceduralBgmRunning.set(false);
-        if (proceduralBgmTrack != null) {
-            try {
-                proceduralBgmTrack.stop();
-                proceduralBgmTrack.release();
-            } catch (Exception ignored) {}
-            proceduralBgmTrack = null;
-        }
+        // Handled dynamically in mixer
+    }
+
+    public void playBgm(String theme) {
+        startProceduralBgm(theme);
+    }
+
+    public void playBgm(String theme, boolean loop) {
+        startProceduralBgm(theme);
     }
 
     public void playBgm(int resId, final boolean loop) {
-        if (!enabled || resId == 0) return;
-        stopProceduralBgm();
-        String key = String.valueOf(resId);
-        if (key.equals(currentBgm)) return;
-
-        stopBgm();
-        try {
-            bgmPlayer = MediaPlayer.create(context, resId);
-            if (bgmPlayer != null) {
-                bgmPlayer.setLooping(loop);
-                bgmPlayer.setVolume(getEffectiveBgmVolume(), getEffectiveBgmVolume());
-                bgmPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener() {
-                    @Override
-                    public boolean onError(MediaPlayer mp, int what, int extra) {
-                        stopBgm();
-                        return true;
-                    }
-                });
-                bgmPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                    @Override
-                    public void onCompletion(MediaPlayer mp) {
-                        if (!loop) currentBgm = "";
-                    }
-                });
-                bgmPlayer.start();
-                currentBgm = key;
-            }
-        } catch (Exception e) { stopBgm(); }
+        // Compatibility stub
     }
 
     public void stopBgm() {
-        stopProceduralBgm();
-        if (bgmPlayer != null) {
-            try { if (bgmPlayer.isPlaying()) bgmPlayer.stop(); } catch (Exception ignored) {}
-            bgmPlayer.release();
-            bgmPlayer = null;
-            currentBgm = "";
-        }
+        // Compatibility stub
     }
 
     public void stopAmbient() {
-        if (ambientPlayer != null) {
-            try { ambientPlayer.stop(); ambientPlayer.release(); } catch (Exception ignored) {}
-            ambientPlayer = null;
-            currentAmbient = "";
-        }
+        // Compatibility stub
     }
 
     public void pauseBgm() {
-        if (bgmPlayer != null && bgmPlayer.isPlaying()) bgmPlayer.pause();
-        stopProceduralBgm();
+        setBgmEnabled(false);
     }
 
     public void resumeBgm() {
-        if (bgmPlayer != null) {
-            bgmPlayer.start();
-        } else if (bgmEnabled && enabled) {
-            startProceduralBgm(activeBgmTheme);
-        }
+        setBgmEnabled(true);
     }
 
     public void setDucking(boolean d) {
-        ducking = d;
-        updateVolumes();
+        this.ducking = d;
     }
 
-    private void updateVolumes() {
-        float effBgm = getEffectiveBgmVolume();
-        float effAmb = getEffectiveAmbientVolume();
-        if (bgmPlayer != null) bgmPlayer.setVolume(effBgm, effBgm);
-        if (ambientPlayer != null) ambientPlayer.setVolume(effAmb, effAmb);
-    }
-
-    private float getEffectiveBgmVolume() {
+    public float getEffectiveBgmVolume() {
         return MathUtils.clamp(bgmVolume * masterVolume * (ducking ? 0.2f : 1f), 0f, 1f);
     }
 
-    private float getEffectiveAmbientVolume() {
+    public float getEffectiveAmbientVolume() {
         return MathUtils.clamp(ambientVolume * masterVolume * (ducking ? 0.1f : 1f), 0f, 1f);
     }
 
+    public float getBgmVolume() {
+        return bgmVolume;
+    }
+
+    public float getAmbientVolume() {
+        return ambientVolume;
+    }
+
+    public float getSfxVolume() {
+        return sfxVolume;
+    }
+
+    public float getMasterVolume() {
+        return masterVolume;
+    }
+
     public void setBgmVolume(float v) {
-        bgmVolume = MathUtils.clamp01(v);
-        updateVolumes();
+        this.bgmVolume = MathUtils.clamp01(v);
     }
 
     public void setAmbientVolume(float v) {
-        ambientVolume = MathUtils.clamp01(v);
-        updateVolumes();
+        this.ambientVolume = MathUtils.clamp01(v);
     }
 
     public void setSfxVolume(float v) {
-        sfxVolume = MathUtils.clamp01(v);
+        this.sfxVolume = MathUtils.clamp01(v);
     }
 
     public void setMasterVolume(float v) {
-        masterVolume = MathUtils.clamp01(v);
-        updateVolumes();
+        this.masterVolume = MathUtils.clamp01(v);
     }
 
     public void setBgmEnabled(boolean e) {
-        bgmEnabled = e;
-        if (!e) {
-            stopBgm();
-        } else {
-            startProceduralBgm(activeBgmTheme);
-        }
+        this.bgmEnabled = e;
     }
 
     public boolean isBgmEnabled() {
@@ -779,13 +655,10 @@ public final class AudioManager {
     }
 
     public void setEnabled(boolean e) {
-        enabled = e;
-        if (!e) {
-            stopBgm();
-            stopAmbient();
-        } else {
+        this.enabled = e;
+        if (e && !isMixerRunning.get()) {
             requestAudioFocus();
-            if (bgmEnabled) startProceduralBgm(activeBgmTheme);
+            startMixer();
         }
     }
 
@@ -796,14 +669,7 @@ public final class AudioManager {
     public void release() {
         mainHandler.removeCallbacksAndMessages(null);
         abandonAudioFocus();
-        if (sfxPool != null) {
-            sfxPool.release();
-            sfxPool = null;
-        }
-        stopProceduralBgm();
-        stopBgm();
-        stopAmbient();
-        soundExecutor.shutdown();
+        stopMixer();
         instance = null;
     }
 }
