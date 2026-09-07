@@ -292,6 +292,19 @@ public final class DialogManager {
             }
 
             final RadioGroup rg = (RadioGroup) d.findViewById(R.id.rgTasks);
+            if (rg != null) {
+                int currentTask = disciple.currentTask;
+                if (currentTask == GameConfig.TASK_FARMING) rg.check(R.id.rbFarming);
+                else if (currentTask == GameConfig.TASK_CRAFTING) rg.check(R.id.rbCrafting);
+                else if (currentTask == GameConfig.TASK_ALCHEMY) rg.check(R.id.rbAlchemy);
+                else if (currentTask == GameConfig.TASK_CULTIVATION) rg.check(R.id.rbCultivation);
+                else if (currentTask == GameConfig.TASK_MINING) rg.check(R.id.rbMining);
+                else if (currentTask == GameConfig.TASK_TRAINING) rg.check(R.id.rbTraining);
+                else if (currentTask == GameConfig.TASK_GUARD) rg.check(R.id.rbGuard);
+                else if (currentTask == GameConfig.TASK_RESEARCH) rg.check(R.id.rbResearch);
+                else if (currentTask == GameConfig.TASK_TRADING) rg.check(R.id.rbTrading);
+                else if (currentTask == GameConfig.TASK_EXPLORING) rg.check(R.id.rbExploring);
+            }
             Button btnConfirm = (Button) d.findViewById(R.id.btnConfirmTask);
 
             if (btnConfirm != null) {

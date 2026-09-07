@@ -39,4 +39,30 @@ class ExampleRobolectricTest {
         val disciples = vm.data.disciples
         assertTrue(disciples.contains(disciple))
     }
+
+    @Test
+    fun `verify task dialog preselects active disciple task`() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val dialogManager = com.sect.idle.ui.DialogManager(app)
+        val disciple = Disciple().apply {
+            id = "test_disciple_1"
+            name = "Elder Lin"
+            currentTask = com.sect.idle.core.GameConfig.TASK_ALCHEMY
+        }
+
+        var selectedTask = -1
+        dialogManager.showTaskDialog(disciple) { task ->
+            selectedTask = task
+        }
+
+        val latestDialog = org.robolectric.shadows.ShadowDialog.getLatestDialog()
+        assertNotNull(latestDialog)
+        val radioGroup = latestDialog.findViewById<android.widget.RadioGroup>(R.id.rgTasks)
+        assertNotNull(radioGroup)
+        assertEquals(R.id.rbAlchemy, radioGroup.checkedRadioButtonId)
+
+        val btnConfirm = latestDialog.findViewById<android.widget.Button>(R.id.btnConfirmTask)
+        btnConfirm.performClick()
+        assertEquals(com.sect.idle.core.GameConfig.TASK_ALCHEMY, selectedTask)
+    }
 }
