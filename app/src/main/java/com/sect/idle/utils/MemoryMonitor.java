@@ -197,7 +197,7 @@ public final class MemoryMonitor {
             try {
                 activeListeners.get(i).onTrimMemory(pressureLevel);
             } catch (Exception e) {
-                ExceptionManager.get().recordHandledException(e, "MemoryMonitor dispatchReclamation");
+                ExceptionManager.get().logError("MemoryMonitor", "dispatchReclamation failed", e);
             }
         }
 
@@ -238,7 +238,7 @@ public final class MemoryMonitor {
             try {
                 activeListeners.get(i).onEmergencyMemoryRelease();
             } catch (Exception e) {
-                ExceptionManager.get().recordHandledException(e, "MemoryMonitor dispatchEmergencyRelease");
+                ExceptionManager.get().logError("MemoryMonitor", "dispatchEmergencyRelease failed", e);
             }
         }
 

@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-sdk tools:overrideLibrary="com.google.firebase.appcheck.recaptcha, com.google.firebase.ai, com.google.firebase.appcheck, com.google.firebase.appcheck.interop, com.google.firebase.appcheck.playintegrity, com.google.firebase.components, com.google.firebase.common, com.google.firebase.concurrent, com.google.firebase" />
+
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application

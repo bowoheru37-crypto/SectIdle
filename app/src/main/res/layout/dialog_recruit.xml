@@ -3,10 +3,10 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_gravity="center"
-    android:layout_margin="24dp"
-    android:background="#DD0A0A18"
+    android:layout_margin="16dp"
+    android:background="@drawable/bg_combat_card"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:padding="18dp">
 
     <TextView
         android:id="@+id/tvCandidateName"
@@ -149,20 +149,20 @@
         <Button
             android:id="@+id/btnReject"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="44dp"
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
-            android:background="#33FF5252"
+            android:background="@drawable/bg_button_jade"
             android:text="Reject"
             android:textColor="#FFFF5252" />
 
         <Button
             android:id="@+id/btnAccept"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="44dp"
             android:layout_marginStart="8dp"
             android:layout_weight="1"
-            android:background="#3300E676"
+            android:background="@drawable/bg_button_jade"
             android:text="Accept"
             android:textColor="#FF00E676" />
     </LinearLayout>
