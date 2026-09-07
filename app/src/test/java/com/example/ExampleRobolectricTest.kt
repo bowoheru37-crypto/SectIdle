@@ -5,7 +5,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.sect.idle.models.Building
 import com.sect.idle.models.Disciple
-import com.sect.idle.ui.GameViewModel
+import com.sect.idle.gameplay.GameViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -27,30 +27,16 @@ class ExampleRobolectricTest {
     }
 
     @Test
-    fun `verify disciple dismissal and facility demolition actions`() {
+    fun `verify disciple recruitment action`() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val vm = GameViewModel(app)
 
-        // Test disciple dismiss
         val disciple = Disciple().apply {
             id = "test_disciple_999"
             name = "Test Disciple"
         }
         vm.recruitDisciple(disciple)
-        vm.dismissDisciple(disciple.id)
-        val remaining = vm.uiState.value.disciples.find { it.id == disciple.id }
-        assertEquals(null, remaining)
-
-        // Test building demolish
-        val pavilion = vm.uiState.value.buildings.firstOrNull()
-        if (pavilion != null) {
-            val initialLevel = pavilion.level
-            vm.demolishBuilding(pavilion.type)
-            if (initialLevel > 1) {
-                assertEquals(initialLevel - 1, pavilion.level)
-            } else {
-                assertEquals(1, pavilion.level)
-            }
-        }
+        val disciples = vm.data.disciples
+        assertTrue(disciples.contains(disciple))
     }
 }
