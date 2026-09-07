@@ -33,29 +33,29 @@ public final class GameConfig {
     public static final int TIER_MED = QUALITY_MEDIUM;
     public static final int TIER_HIGH = QUALITY_HIGH;
 
-    public static int currentQuality = QUALITY_MEDIUM;
-    public static int deviceTier = QUALITY_MEDIUM;
+    public static int currentQuality = QUALITY_LOW;
+    public static int deviceTier = QUALITY_LOW;
 
-    // Feature toggles
-    public static boolean ENABLE_SHADOWS = true;
-    public static boolean ENABLE_LIGHTING = true;
-    public static boolean ENABLE_PARTICLES = true;
-    public static boolean ENABLE_POST_PROCESS = true;
+    // Feature toggles - optimized defaults for low-entry devices (1GB RAM & low CPU/GPU)
+    public static boolean ENABLE_SHADOWS = false;
+    public static boolean ENABLE_LIGHTING = false;
+    public static boolean ENABLE_PARTICLES = false;
+    public static boolean ENABLE_POST_PROCESS = false;
     public static boolean ENABLE_BLOOM = false;
     public static boolean ENABLE_REFLECTION = false;
-    public static boolean ENABLE_VIGNETTE = true;
-    public static boolean ENABLE_SPECULAR = true;
-    public static boolean ENABLE_FAKE_3D = true;
+    public static boolean ENABLE_VIGNETTE = false;
+    public static boolean ENABLE_SPECULAR = false;
+    public static boolean ENABLE_FAKE_3D = false;
     public static boolean ENABLE_ANIMATION = true;
     public static boolean ENABLE_DAMAGE_NUMBERS = true;
-    public static boolean ENABLE_GROUND_RING = true;
-    public static boolean ENABLE_TRAILS = true;
+    public static boolean ENABLE_GROUND_RING = false;
+    public static boolean ENABLE_TRAILS = false;
     public static boolean ENABLE_SMOOTH_CAMERA = true;
     public static final boolean FORCE_EFFECTS = false;
 
     // Render limits
-    public static int MAX_LIGHTS = 16;
-    public static int MAX_PARTICLES_RENDER = 300;
+    public static int MAX_LIGHTS = 0;
+    public static int MAX_PARTICLES_RENDER = 0;
     public static int MAX_LAYER_BUFFERS = 5;
     public static float SHADOW_QUALITY = 0.5f;
 
