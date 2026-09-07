@@ -275,19 +275,30 @@ public final class AudioManager {
                             AudioFormat.ENCODING_PCM_16BIT
                     );
 
-                    mixerTrack = new AudioTrack.Builder()
-                            .setAudioAttributes(new AudioAttributes.Builder()
-                                    .setUsage(AudioAttributes.USAGE_GAME)
-                                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                                    .build())
-                            .setAudioFormat(new AudioFormat.Builder()
-                                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                                    .setSampleRate(SAMPLE_RATE)
-                                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                                    .build())
-                            .setBufferSizeInBytes(Math.max(minBuf * 2, BUFFER_SIZE_SAMPLES * 4))
-                            .setTransferMode(AudioTrack.MODE_STREAM)
-                            .build();
+                    if (android.os.Build.VERSION.SDK_INT >= 23) {
+                        mixerTrack = new AudioTrack.Builder()
+                                .setAudioAttributes(new AudioAttributes.Builder()
+                                        .setUsage(AudioAttributes.USAGE_GAME)
+                                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                        .build())
+                                .setAudioFormat(new AudioFormat.Builder()
+                                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                                        .setSampleRate(SAMPLE_RATE)
+                                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                                        .build())
+                                .setBufferSizeInBytes(Math.max(minBuf * 2, BUFFER_SIZE_SAMPLES * 4))
+                                .setTransferMode(AudioTrack.MODE_STREAM)
+                                .build();
+                    } else {
+                        mixerTrack = new AudioTrack(
+                                android.media.AudioManager.STREAM_MUSIC,
+                                SAMPLE_RATE,
+                                AudioFormat.CHANNEL_OUT_MONO,
+                                AudioFormat.ENCODING_PCM_16BIT,
+                                Math.max(minBuf * 2, BUFFER_SIZE_SAMPLES * 4),
+                                AudioTrack.MODE_STREAM
+                        );
+                    }
 
                     if (mixerTrack.getState() != AudioTrack.STATE_INITIALIZED) {
                         return;
