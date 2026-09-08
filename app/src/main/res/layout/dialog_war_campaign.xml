@@ -38,7 +38,8 @@
             android:background="@drawable/bg_button_jade"
             android:text="✕"
             android:textColor="#FFFFFFFF"
-            android:textSize="14sp" />
+            android:textSize="14sp"
+            android:contentDescription="Close" />
     </LinearLayout>
 
     <View
