@@ -29,6 +29,17 @@ public final class FarmingSystem {
         float workerEfficiency = 1.0f;
         int quality = 1;
 
+        SectData data = SectData.getInstance();
+        float seasonMultiplier = 1.0f;
+        if (data.time != null) {
+            // Spring=1.2, Summer=1.5, Autumn=1.0, Winter=0.6
+            int season = data.time.season;
+            if (season == 0) seasonMultiplier = 1.2f;
+            else if (season == 1) seasonMultiplier = 1.5f;
+            else if (season == 2) seasonMultiplier = 1.0f;
+            else if (season == 3) seasonMultiplier = 0.6f;
+        }
+
         if (worker != null) {
             workerEfficiency = (worker.taskEfficiency / 100f) * (1.0f + worker.intel * 0.02f);
             if (RNG.chance(worker.lck * 2)) {
@@ -36,7 +47,7 @@ public final class FarmingSystem {
             }
         }
 
-        long totalHerbs = (long)(baseYield * workerEfficiency * bonusMultiplier);
+        long totalHerbs = (long)(baseYield * workerEfficiency * bonusMultiplier * seasonMultiplier);
         if (totalHerbs < 1) totalHerbs = 1;
 
         long stonesBonus = quality > 1 ? (totalHerbs * 2) : 0;
@@ -46,7 +57,6 @@ public final class FarmingSystem {
             worker.addExp(exp);
         }
 
-        SectData data = SectData.getInstance();
         data.earn(stonesBonus, totalHerbs, 0);
 
         return new HarvestResult(totalHerbs, quality, stonesBonus, exp);

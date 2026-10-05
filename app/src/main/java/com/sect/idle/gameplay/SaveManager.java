@@ -65,13 +65,14 @@ public final class SaveManager {
             long vipExpiration = prefs.getLong(KEY_VIP_EXPIRATION, 0L);
             int gachaPity = prefs.getInt(KEY_GACHA_PITY, 0);
 
-            // Integrity Check
+            // Integrity Check (Supports legacy 6-param and new 7-param state payloads)
             String savedChecksum = prefs.getString(KEY_CHECKSUM, "");
-            String statePayload = sectName + "|" + stones + "|" + herbs + "|" + ores + "|" + realm + "|" + exp + "|" + jade;
+            String statePayloadNew = sectName + "|" + stones + "|" + herbs + "|" + ores + "|" + realm + "|" + exp + "|" + jade;
+            String statePayloadLegacy = sectName + "|" + stones + "|" + herbs + "|" + ores + "|" + realm + "|" + exp;
             
             if (context != null && !savedChecksum.isEmpty()) {
                 SecurityManager sec = SecurityManager.get(context);
-                if (!sec.verifyIntegrity(statePayload, savedChecksum)) {
+                if (!sec.verifyIntegrity(statePayloadNew, savedChecksum) && !sec.verifyIntegrity(statePayloadLegacy, savedChecksum)) {
                     ExceptionManager.get().logWarn(TAG, "Save data checksum mismatch detected! Attempting sanitized recovery.");
                 }
             }
