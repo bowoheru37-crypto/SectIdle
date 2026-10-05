@@ -85,13 +85,15 @@ public final class MonetizationManager {
     public boolean claimDailyVipReward() {
         if (!isVipActive()) return false;
         SectData data = SectData.getInstance();
-        long currentDay = data.time.totalDays;
-        if (lastVipClaimDay < currentDay) {
-            lastVipClaimDay = currentDay;
-            data.jade += 100;
-            data.spiritStones += 5000;
-            data.earn(5000, 500, 250);
-            return true;
+        if (data.time != null) {
+            long currentDay = data.time.totalDays;
+            if (lastVipClaimDay < currentDay) {
+                lastVipClaimDay = currentDay;
+                data.jade += 100;
+                data.spiritStones += 5000;
+                data.earn(5000, 500, 250);
+                return true;
+            }
         }
         return false;
     }

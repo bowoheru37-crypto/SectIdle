@@ -122,20 +122,35 @@ public final class BattleEngine {
         BattleUnit target = findTarget(actor.team == 0 ? 1 : 0);
         if (target == null) return;
 
-        int dmg = actor.calcDamage(target, 1.0f);
+        // 1. Martial Arts Combo Chain & Stance Modifier (Tekken / Soul Edge)
+        float comboMultiplier = 1.0f;
+        boolean isJuggle = RNG.chance(25);
+        if (isJuggle) {
+            comboMultiplier = 1.6f;
+            addLog("🥊 " + actor.name + " triggered 10-Hit Juggle Combo on " + target.name + "!");
+        }
+
+        // 2. Desperation Super Combo / Qi Clash (DBGT Final Bout / KoF)
+        if (actor.hp < actor.maxHp * 0.25f && RNG.chance(40)) {
+            comboMultiplier = 2.5f;
+            addLog("⚡ DESPERATION SUPER COMBO! " + actor.name + " unleashes Heavenly Qi Clash!");
+        }
+
+        int dmg = actor.calcDamage(target, comboMultiplier);
         if (dmg <= 0) {
             addLog(actor.name + " attacked " + target.name + ", but missed!");
         } else {
             target.takeDamage(dmg);
-            if (dmg > actor.atk * 1.5f) {
-                addLog(actor.name + " landed a critical hit on " + target.name + " for " + dmg + " dmg!");
+            if (dmg > actor.atk * 1.8f) {
+                addLog(actor.name + " CRITICAL FINISHER! Dealt " + dmg + " dmg to " + target.name + "!");
             } else {
-                addLog(actor.name + " attacked " + target.name + " for " + dmg + " dmg.");
+                addLog(actor.name + " struck " + target.name + " for " + dmg + " dmg.");
             }
 
+            // 3. Mortal Kombat Style Heavenly Execution Finisher
             if (!target.isAlive) {
                 actor.kills++;
-                addLog(target.name + " has fallen in combat!");
+                addLog("💀 HEAVENLY EXECUTION! " + actor.name + " utterly vanquished " + target.name + "!");
             }
         }
     }
