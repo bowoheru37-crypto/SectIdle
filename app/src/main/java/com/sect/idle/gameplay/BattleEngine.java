@@ -14,6 +14,7 @@ public final class BattleEngine {
     public boolean playerWon = false;
     public int round = 1;
     public int turn = 0;
+    public int battleSpeed = 1; // 1x, 2x, 4x speed support
 
     private final ArrayList<BattleUnit> units;
     private final ArrayList<String> log;
@@ -51,9 +52,53 @@ public final class BattleEngine {
         }
 
         addLog("Battle begins! Round " + round);
+        checkElementalSynergy();
+    }
+
+    private void checkElementalSynergy() {
+        // Count elements on player team
+        int[] elemCount = new int[12];
+        for (int i = 0; i < units.size(); i++) {
+            BattleUnit u = units.get(i);
+            if (u != null && u.team == 0) {
+                int elem = u.element;
+                if (elem >= 0 && elem < elemCount.length) {
+                    elemCount[elem]++;
+                }
+            }
+        }
+
+        // Apply +15% stats if 2+ disciples share same element
+        for (int e = 0; e < elemCount.length; e++) {
+            if (elemCount[e] >= 2) {
+                addLog("Elemental Synergy Triggered! (+15% Stats Boost)");
+                for (int i = 0; i < units.size(); i++) {
+                    BattleUnit u = units.get(i);
+                    if (u != null && u.team == 0 && u.element == e) {
+                        u.atk = (int) (u.atk * 1.15f);
+                        u.def = (int) (u.def * 1.15f);
+                    }
+                }
+            }
+        }
+    }
+
+    public void setBattleSpeed(int speed) {
+        if (speed == 1 || speed == 2 || speed == 4) {
+            this.battleSpeed = speed;
+        }
     }
 
     public void tick() {
+        if (!isRunning) return;
+
+        for (int s = 0; s < battleSpeed; s++) {
+            if (!isRunning) break;
+            stepTick();
+        }
+    }
+
+    private void stepTick() {
         if (!isRunning) return;
 
         turn++;

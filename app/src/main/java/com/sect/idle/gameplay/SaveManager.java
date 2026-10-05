@@ -25,6 +25,10 @@ public final class SaveManager {
     private static final String KEY_SECT_REALM = "sect_realm";
     private static final String KEY_SECT_EXP = "sect_exp";
     private static final String KEY_SECT_NAME = "sect_name";
+    private static final String KEY_JADE = "jade";
+    private static final String KEY_VIP_ACTIVE = "vip_active";
+    private static final String KEY_VIP_EXPIRATION = "vip_expiration";
+    private static final String KEY_GACHA_PITY = "gacha_pity";
     private static final String KEY_CHECKSUM = "save_crc32";
 
     private final Context context;
@@ -51,13 +55,19 @@ public final class SaveManager {
             long stones = prefs.getLong(KEY_SPIRIT_STONES, 1000L);
             long herbs = prefs.getLong(KEY_SPIRIT_HERBS, 100L);
             long ores = prefs.getLong(KEY_SPIRIT_ORES, 50L);
+            long jade = prefs.getLong(KEY_JADE, 50L);
             int realm = prefs.getInt(KEY_SECT_REALM, 0);
             long exp = prefs.getLong(KEY_SECT_EXP, 0L);
             String sectName = prefs.getString(KEY_SECT_NAME, "Mount Tai Sect");
 
+            // Monetization
+            boolean vipActive = prefs.getBoolean(KEY_VIP_ACTIVE, false);
+            long vipExpiration = prefs.getLong(KEY_VIP_EXPIRATION, 0L);
+            int gachaPity = prefs.getInt(KEY_GACHA_PITY, 0);
+
             // Integrity Check
             String savedChecksum = prefs.getString(KEY_CHECKSUM, "");
-            String statePayload = sectName + "|" + stones + "|" + herbs + "|" + ores + "|" + realm + "|" + exp;
+            String statePayload = sectName + "|" + stones + "|" + herbs + "|" + ores + "|" + realm + "|" + exp + "|" + jade;
             
             if (context != null && !savedChecksum.isEmpty()) {
                 SecurityManager sec = SecurityManager.get(context);
@@ -72,8 +82,14 @@ public final class SaveManager {
             data.spiritStones = Math.max(0L, stones);
             data.spiritHerbs = Math.max(0L, herbs);
             data.spiritOres = Math.max(0L, ores);
+            data.jade = Math.max(0L, jade);
             data.sectRealm = DataValidator.clampInt(realm, 0, 14);
             data.sectExp = Math.max(0L, exp);
+
+            MonetizationManager mm = MonetizationManager.getInstance();
+            mm.vipActive = vipActive;
+            mm.vipExpirationTime = vipExpiration;
+            mm.gachaPityCounter = gachaPity;
 
             data.recalculateEconomy();
             ExceptionManager.get().logOperationalEvent(TAG, "Save Loaded Successfully", "Sect: " + data.sectName + " | SS: " + data.spiritStones);
@@ -93,7 +109,9 @@ public final class SaveManager {
             if (data == null) return;
 
             String sectName = data.sectName != null ? data.sectName : "Mount Tai Sect";
-            String statePayload = sectName + "|" + data.spiritStones + "|" + data.spiritHerbs + "|" + data.spiritOres + "|" + data.sectRealm + "|" + data.sectExp;
+            MonetizationManager mm = MonetizationManager.getInstance();
+
+            String statePayload = sectName + "|" + data.spiritStones + "|" + data.spiritHerbs + "|" + data.spiritOres + "|" + data.sectRealm + "|" + data.sectExp + "|" + data.jade;
 
             String checksum = "";
             if (context != null) {
@@ -106,8 +124,12 @@ public final class SaveManager {
             editor.putLong(KEY_SPIRIT_STONES, data.spiritStones);
             editor.putLong(KEY_SPIRIT_HERBS, data.spiritHerbs);
             editor.putLong(KEY_SPIRIT_ORES, data.spiritOres);
+            editor.putLong(KEY_JADE, data.jade);
             editor.putInt(KEY_SECT_REALM, data.sectRealm);
             editor.putLong(KEY_SECT_EXP, data.sectExp);
+            editor.putBoolean(KEY_VIP_ACTIVE, mm.vipActive);
+            editor.putLong(KEY_VIP_EXPIRATION, mm.vipExpirationTime);
+            editor.putInt(KEY_GACHA_PITY, mm.gachaPityCounter);
             editor.putString(KEY_CHECKSUM, checksum);
             editor.apply();
 
