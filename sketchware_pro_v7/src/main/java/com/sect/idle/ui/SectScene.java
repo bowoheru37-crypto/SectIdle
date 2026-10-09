@@ -153,6 +153,8 @@ public final class SectScene {
     }
     private OnSelectionListener selectionListener;
     private final SlashMiniGame slashMiniGame;
+    private final HudManager hudManager = new HudManager();
+    private final com.sect.idle.render.IsometricWorld isometricWorld = new com.sect.idle.render.IsometricWorld();
     public void setSelectionListener(OnSelectionListener l) {
         this.selectionListener = l;
         Log.d(TAG, "setSelectionListener called, listener=" + (l != null));
@@ -918,19 +920,15 @@ public final class SectScene {
         sb1.append("  |  Income: ").append(NumberFormatter.format(data.netProfit, sb2)).append("/day");
         canvas.drawText(sb1, 0, sb1.length(), 16, H - 24, uiTextPaint);
 
-        // Quick Bottom Action Buttons
-        renderBottomButton(canvas, W - 430, H - 54, W - 360, H - 8, "⚔️ War", 0xFFFF5252);
-        renderBottomButton(canvas, W - 355, H - 54, W - 285, H - 8, "🏆 Arena", 0xFFFFD700);
-        renderBottomButton(canvas, W - 280, H - 54, W - 215, H - 8, "💥 Battle", 0xFFE53935);
-        renderBottomButton(canvas, W - 210, H - 54, W - 145, H - 8, "👥 Recruit", 0xFF43A047);
-        renderBottomButton(canvas, W - 140, H - 54, W - 75, H - 8, "🏛️ Market", 0xFF1E88E5);
-        renderBottomButton(canvas, W - 70, H - 54, W - 5, H - 8, "⚙️ Menu", 0xFF8E24AA);
+        // Render sleek HudManager HUD Overlay
+        hudManager.renderHud(canvas, data, isometricWorld.getCamera3D(), W, H);
 
-        if (GameConfig.DEBUG) {
-            uiTextPaint.setColor(0xFFFFD700); uiTextPaint.setTextSize(11f);
-            String[] q = {"LOW", "MED", "HIGH", "ULT"};
-            int qIdx = GameConfig.clamp(GameConfig.currentQuality, 0, q.length - 1);
-            canvas.drawText("Q:" + q[qIdx], 16, H - 6, uiTextPaint);
+        if (selectedDisciple >= 0 && data.disciples != null && selectedDisciple < data.disciples.size()) {
+            Disciple d = data.disciples.get(selectedDisciple);
+            hudManager.renderDiscipleDrawer(canvas, d, W, H);
+        } else if (selectedBuilding >= 0 && data.buildings != null && selectedBuilding < data.buildings.size()) {
+            Building b = data.buildings.get(selectedBuilding);
+            hudManager.renderBuildingDrawer(canvas, b, W, H);
         }
     }
 
@@ -1005,26 +1003,28 @@ public final class SectScene {
         int W = camera.viewportW > 0 ? camera.viewportW : 720;
         int H = camera.viewportH > 0 ? camera.viewportH : 1280;
 
-        // Check Bottom Action Bar Buttons
-        if (y >= H - UI_BOT_H) {
-            if (x >= W - 430 && x <= W - 360) {
-                if (selectionListener != null) selectionListener.onWarRequested();
-                return;
-            } else if (x >= W - 355 && x <= W - 285) {
-                if (selectionListener != null) selectionListener.onTournamentRequested();
-                return;
-            } else if (x >= W - 280 && x <= W - 215) {
-                if (selectionListener != null) selectionListener.onBattleRequested();
-                return;
-            } else if (x >= W - 210 && x <= W - 145) {
-                if (selectionListener != null) selectionListener.onRecruitRequested();
-                return;
-            } else if (x >= W - 140 && x <= W - 75) {
-                if (selectionListener != null) selectionListener.onMarketRequested();
-                return;
-            } else if (x >= W - 70 && x <= W - 5) {
-                if (selectionListener != null) selectionListener.onMenuRequested();
-                return;
+        // Check Modern Minimalist HUD action bar taps
+        int hudAction = hudManager.onTouchHud(x, y, W, H);
+        if (hudAction != 0) {
+            switch (hudAction) {
+                case HudManager.ACTION_WAR:
+                    if (selectionListener != null) selectionListener.onWarRequested();
+                    return;
+                case HudManager.ACTION_ARENA:
+                    if (selectionListener != null) selectionListener.onTournamentRequested();
+                    return;
+                case HudManager.ACTION_BATTLE:
+                    if (selectionListener != null) selectionListener.onBattleRequested();
+                    return;
+                case HudManager.ACTION_RECRUIT:
+                    if (selectionListener != null) selectionListener.onRecruitRequested();
+                    return;
+                case HudManager.ACTION_MARKET:
+                    if (selectionListener != null) selectionListener.onMarketRequested();
+                    return;
+                case HudManager.ACTION_MENU:
+                    if (selectionListener != null) selectionListener.onMenuRequested();
+                    return;
             }
         }
 
