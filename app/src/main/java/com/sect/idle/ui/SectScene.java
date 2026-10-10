@@ -153,6 +153,9 @@ public final class SectScene {
     }
     private OnSelectionListener selectionListener;
     private final SlashMiniGame slashMiniGame;
+    private final HudManager hudManager = new HudManager();
+    private final com.sect.idle.render.IsometricWorld isometricWorld = new com.sect.idle.render.IsometricWorld();
+    private final com.sect.idle.render.ParallaxEngine parallaxEngine = new com.sect.idle.render.ParallaxEngine();
     public void setSelectionListener(OnSelectionListener l) {
         this.selectionListener = l;
         Log.d(TAG, "setSelectionListener called, listener=" + (l != null));
@@ -390,6 +393,9 @@ public final class SectScene {
     public void update(float dt) {
         animTime += dt;
         if (tapMarkerLife > 0f) tapMarkerLife -= dt;
+        hudManager.update(dt);
+        parallaxEngine.update(dt);
+        isometricWorld.update(dt);
         if (slashMiniGame != null && slashMiniGame.isActive()) {
             slashMiniGame.update(dt);
             return;
@@ -539,9 +545,8 @@ public final class SectScene {
         }
 
         beginFrame(cam, data);
-        canvas.drawRect(0, 0, W, H, bgPaint);
-        renderParallax(canvas, cam, W, H);
-        renderTilemap(canvas, cam, W, H);
+        parallaxEngine.render(canvas, cam, W, H);
+        isometricWorld.render(canvas, cam, W, H);
         renderGrid(canvas, cam, W, H);
         if (enableShadows) renderShadows(canvas, cam, data);
         renderBuildings(canvas, cam, data, W, H);
@@ -661,7 +666,10 @@ public final class SectScene {
         for (int i = 0; i < buildingCount; i++) {
             Building b = data.buildings.get(i);
             if (b == null || !b.isBuilt) continue;
-            float px = cam.worldToScreenX(bldgX[i]), py = cam.worldToScreenY(bldgY[i]);
+            float bTileX = (bldgX[i] - MAP_ORIGIN_X) / TILE_SIZE;
+            float bTileY = (bldgY[i] - MAP_ORIGIN_Y) / TILE_SIZE;
+            float px = isometricWorld.getCamera3D().worldToScreenX(bTileX, bTileY);
+            float py = isometricWorld.getCamera3D().worldToScreenY(bTileX, bTileY, 15f);
             float size = BLDG_S * frameZoom, half = size * 0.5f, shadowOff = 8f * frameZoom;
             shadowPaint.setAlpha(80);
             r1.set(px - half + shadowOff, py - half + shadowOff, px + half + shadowOff, py + half + shadowOff);
@@ -669,7 +677,10 @@ public final class SectScene {
         }
         for (int i = 0; i < discipleCount; i++) {
             Disciple d = data.disciples.get(i); if (d == null) continue;
-            float px = cam.worldToScreenX(d.position.x), py = cam.worldToScreenY(d.position.y);
+            float dTileX = (d.position.x - MAP_ORIGIN_X) / TILE_SIZE;
+            float dTileY = (d.position.y - MAP_ORIGIN_Y) / TILE_SIZE;
+            float px = isometricWorld.getCamera3D().worldToScreenX(dTileX, dTileY);
+            float py = isometricWorld.getCamera3D().worldToScreenY(dTileX, dTileY, 0f);
             float rad = DISC_R * frameZoom;
             shadowPaint.setAlpha(60);
             r1.set(px - rad * 0.8f, py + rad * 0.3f, px + rad * 0.8f, py + rad * 0.8f);
@@ -683,7 +694,10 @@ public final class SectScene {
         for (int i = 0; i < buildingCount; i++) {
             Building b = data.buildings.get(i); if (b == null) continue;
             b.posX = (int) bldgX[i]; b.posY = (int) bldgY[i];
-            float px = cam.worldToScreenX(bldgX[i]), py = cam.worldToScreenY(bldgY[i]);
+            float bTileX = (bldgX[i] - MAP_ORIGIN_X) / TILE_SIZE;
+            float bTileY = (bldgY[i] - MAP_ORIGIN_Y) / TILE_SIZE;
+            float px = isometricWorld.getCamera3D().worldToScreenX(bTileX, bTileY);
+            float py = isometricWorld.getCamera3D().worldToScreenY(bTileX, bTileY, 15f);
             if (px < -size || px > W + size || py < -size || py > H + size) continue;
 
             if (b.isBuilt && zoom > 0.4f) {
@@ -743,7 +757,10 @@ public final class SectScene {
         namePaint.setTextSize(12f * zoom);
         for (int i = 0; i < discipleCount; i++) {
             Disciple d = data.disciples.get(i); if (d == null) continue;
-            float px = cam.worldToScreenX(d.position.x), py = cam.worldToScreenY(d.position.y);
+            float dTileX = (d.position.x - MAP_ORIGIN_X) / TILE_SIZE;
+            float dTileY = (d.position.y - MAP_ORIGIN_Y) / TILE_SIZE;
+            float px = isometricWorld.getCamera3D().worldToScreenX(dTileX, dTileY);
+            float py = isometricWorld.getCamera3D().worldToScreenY(dTileX, dTileY, 0f);
             if (px < -rad * 3f || px > W + rad * 3f || py < -rad * 3f || py > H + rad * 3f) continue;
             if (d.realm >= 5 && !lowEnd) {
                 float auraRadius = rad * (1.8f + (float) Math.sin(animTime * 3f + i) * 0.3f);
@@ -918,19 +935,15 @@ public final class SectScene {
         sb1.append("  |  Income: ").append(NumberFormatter.format(data.netProfit, sb2)).append("/day");
         canvas.drawText(sb1, 0, sb1.length(), 16, H - 24, uiTextPaint);
 
-        // Quick Bottom Action Buttons
-        renderBottomButton(canvas, W - 430, H - 54, W - 360, H - 8, "⚔️ War", 0xFFFF5252);
-        renderBottomButton(canvas, W - 355, H - 54, W - 285, H - 8, "🏆 Arena", 0xFFFFD700);
-        renderBottomButton(canvas, W - 280, H - 54, W - 215, H - 8, "💥 Battle", 0xFFE53935);
-        renderBottomButton(canvas, W - 210, H - 54, W - 145, H - 8, "👥 Recruit", 0xFF43A047);
-        renderBottomButton(canvas, W - 140, H - 54, W - 75, H - 8, "🏛️ Market", 0xFF1E88E5);
-        renderBottomButton(canvas, W - 70, H - 54, W - 5, H - 8, "⚙️ Menu", 0xFF8E24AA);
+        // Render sleek HudManager HUD Overlay
+        hudManager.renderHud(canvas, data, isometricWorld.getCamera3D(), W, H);
 
-        if (GameConfig.DEBUG) {
-            uiTextPaint.setColor(0xFFFFD700); uiTextPaint.setTextSize(11f);
-            String[] q = {"LOW", "MED", "HIGH", "ULT"};
-            int qIdx = GameConfig.clamp(GameConfig.currentQuality, 0, q.length - 1);
-            canvas.drawText("Q:" + q[qIdx], 16, H - 6, uiTextPaint);
+        if (selectedDisciple >= 0 && data.disciples != null && selectedDisciple < data.disciples.size()) {
+            Disciple d = data.disciples.get(selectedDisciple);
+            hudManager.renderDiscipleDrawer(canvas, d, W, H);
+        } else if (selectedBuilding >= 0 && data.buildings != null && selectedBuilding < data.buildings.size()) {
+            Building b = data.buildings.get(selectedBuilding);
+            hudManager.renderBuildingDrawer(canvas, b, W, H);
         }
     }
 
@@ -1005,26 +1018,28 @@ public final class SectScene {
         int W = camera.viewportW > 0 ? camera.viewportW : 720;
         int H = camera.viewportH > 0 ? camera.viewportH : 1280;
 
-        // Check Bottom Action Bar Buttons
-        if (y >= H - UI_BOT_H) {
-            if (x >= W - 430 && x <= W - 360) {
-                if (selectionListener != null) selectionListener.onWarRequested();
-                return;
-            } else if (x >= W - 355 && x <= W - 285) {
-                if (selectionListener != null) selectionListener.onTournamentRequested();
-                return;
-            } else if (x >= W - 280 && x <= W - 215) {
-                if (selectionListener != null) selectionListener.onBattleRequested();
-                return;
-            } else if (x >= W - 210 && x <= W - 145) {
-                if (selectionListener != null) selectionListener.onRecruitRequested();
-                return;
-            } else if (x >= W - 140 && x <= W - 75) {
-                if (selectionListener != null) selectionListener.onMarketRequested();
-                return;
-            } else if (x >= W - 70 && x <= W - 5) {
-                if (selectionListener != null) selectionListener.onMenuRequested();
-                return;
+        // Check Modern Minimalist HUD action bar taps
+        int hudAction = hudManager.onTouchHud(x, y, W, H);
+        if (hudAction != 0) {
+            switch (hudAction) {
+                case HudManager.ACTION_WAR:
+                    if (selectionListener != null) selectionListener.onWarRequested();
+                    return;
+                case HudManager.ACTION_ARENA:
+                    if (selectionListener != null) selectionListener.onTournamentRequested();
+                    return;
+                case HudManager.ACTION_BATTLE:
+                    if (selectionListener != null) selectionListener.onBattleRequested();
+                    return;
+                case HudManager.ACTION_RECRUIT:
+                    if (selectionListener != null) selectionListener.onRecruitRequested();
+                    return;
+                case HudManager.ACTION_MARKET:
+                    if (selectionListener != null) selectionListener.onMarketRequested();
+                    return;
+                case HudManager.ACTION_MENU:
+                    if (selectionListener != null) selectionListener.onMenuRequested();
+                    return;
             }
         }
 
@@ -1086,8 +1101,12 @@ public final class SectScene {
             selectedDiscipleId = null;
             selectedDisciple = -1;
         }
+        hudManager.resetPanelAnim();
     }
-    public void setSelectedBuilding(int index) { selectedBuilding = index; }
+    public void setSelectedBuilding(int index) {
+        selectedBuilding = index;
+        hudManager.resetPanelAnim();
+    }
     public int getSelectedDisciple() { return selectedDisciple; }
     public void resetSelection() {
         selectedDiscipleId = null;

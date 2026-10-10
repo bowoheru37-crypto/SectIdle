@@ -168,6 +168,14 @@ public final class SpriteMaker {
         return bmp;
     }
 
+    public static String generateAcgTitle(int realm, int element) {
+        String[] prefixes = {"Heavenly", "Divine", "Mystic", "Immortal", "Shadow", "Supreme"};
+        String[] suffixes = {"Swordmaster", "Flame Emperor", "Lotus Saint", "Dao Monarch", "Sovereign"};
+        int pIdx = (int) (Math.abs(realm + element) % prefixes.length);
+        int sIdx = (int) (Math.abs(realm * 3 + element) % suffixes.length);
+        return prefixes[pIdx] + " " + suffixes[sIdx];
+    }
+
     public static Bitmap createBuilding(int size, int type, int level, long seed) {
         Bitmap bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
