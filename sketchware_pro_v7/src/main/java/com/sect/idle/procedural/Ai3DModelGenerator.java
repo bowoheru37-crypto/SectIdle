@@ -96,8 +96,7 @@ public final class Ai3DModelGenerator {
     private static void cacheBitmap(String key, Bitmap bmp) {
         if (modelCache.size() >= MAX_CACHE_SIZE) {
             String firstKey = modelCache.keySet().iterator().next();
-            Bitmap old = modelCache.remove(firstKey);
-            if (old != null && !old.isRecycled()) old.recycle();
+            modelCache.remove(firstKey);
         }
         modelCache.put(key, bmp);
     }

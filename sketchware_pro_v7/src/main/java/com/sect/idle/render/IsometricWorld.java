@@ -91,7 +91,9 @@ public final class IsometricWorld {
         if (canvas == null) return;
         camera3D.setViewport(screenW, screenH);
         if (cam != null) {
-            camera3D.moveTo(cam.pos.x, cam.pos.y);
+            float camTileX = cam.pos.x / ChunkManager.TILE_SIZE;
+            float camTileY = cam.pos.y / ChunkManager.TILE_SIZE;
+            camera3D.moveTo(camTileX, camTileY);
             camera3D.setZoom(cam.zoom);
         }
         render3D(canvas, screenW, screenH);
@@ -113,8 +115,8 @@ public final class IsometricWorld {
         float halfTH = tileH * 0.5f;
 
         // Compute visible chunk bounds around camera target
-        int centerChunkX = (int) (camWorldX / (ChunkManager.CHUNK_SIZE * ChunkManager.TILE_SIZE));
-        int centerChunkY = (int) (camWorldY / (ChunkManager.CHUNK_SIZE * ChunkManager.TILE_SIZE));
+        int centerChunkX = (int) (camWorldX / ChunkManager.CHUNK_SIZE);
+        int centerChunkY = (int) (camWorldY / ChunkManager.CHUNK_SIZE);
         int renderRadius = (int) Math.ceil((Math.max(screenW, screenH) / (tileH * zoom)) / ChunkManager.CHUNK_SIZE) + 1;
 
         int minCX = centerChunkX - renderRadius;
@@ -147,12 +149,10 @@ public final class IsometricWorld {
 
         int worldTileX = chunk.chunkX * ChunkManager.CHUNK_SIZE + tx;
         int worldTileY = chunk.chunkY * ChunkManager.CHUNK_SIZE + ty;
-        float worldX = worldTileX * ChunkManager.TILE_SIZE;
-        float worldY = worldTileY * ChunkManager.TILE_SIZE;
         float heightZ = chunk.heights[tx][ty];
 
-        float sx = camera3D.worldToScreenX(worldX, worldY);
-        float sy = camera3D.worldToScreenY(worldX, worldY, heightZ);
+        float sx = camera3D.worldToScreenX(worldTileX, worldTileY);
+        float sy = camera3D.worldToScreenY(worldTileX, worldTileY, heightZ);
 
         float halfTW = camera3D.tileW * 0.5f * camera3D.zoom;
         float halfTH = camera3D.tileH * 0.5f * camera3D.zoom;
@@ -167,21 +167,24 @@ public final class IsometricWorld {
         int leftColor = darkenColor(baseColor, 0.75f);
         int rightColor = darkenColor(baseColor, 0.60f);
 
-        // 1. Draw Top Isometric Diamond Face
-        diamondPath.reset();
-        diamondPath.moveTo(sx, sy - halfTH);          // Top vertex
-        diamondPath.lineTo(sx + halfTW, sy);          // Right vertex
-        diamondPath.lineTo(sx, sy + halfTH);          // Bottom vertex
-        diamondPath.lineTo(sx - halfTW, sy);          // Left vertex
-        diamondPath.close();
-
         topFacePaint.setColor(topColor);
-        canvas.drawPath(diamondPath, topFacePaint);
 
-        // 2. Extrude 3D Heights Side Walls if elevation > 0
+        // Optimized fast rendering for flat ground tiles (zero path overhead)
         float extrudedH = heightZ * camera3D.zoom * 0.8f;
-        if (extrudedH > 1.0f) {
-            // Left Side Wall
+        if (extrudedH <= 1.0f) {
+            dstRect.set(sx - halfTW, sy - halfTH, sx + halfTW, sy + halfTH);
+            canvas.drawOval(dstRect, topFacePaint);
+        } else {
+            // 1. Draw Top Isometric Diamond Face
+            diamondPath.reset();
+            diamondPath.moveTo(sx, sy - halfTH);          // Top vertex
+            diamondPath.lineTo(sx + halfTW, sy);          // Right vertex
+            diamondPath.lineTo(sx, sy + halfTH);          // Bottom vertex
+            diamondPath.lineTo(sx - halfTW, sy);          // Left vertex
+            diamondPath.close();
+            canvas.drawPath(diamondPath, topFacePaint);
+
+            // 2. Extrude 3D Heights Side Walls
             leftSidePath.reset();
             leftSidePath.moveTo(sx - halfTW, sy);
             leftSidePath.lineTo(sx, sy + halfTH);
@@ -191,7 +194,6 @@ public final class IsometricWorld {
             leftFacePaint.setColor(leftColor);
             canvas.drawPath(leftSidePath, leftFacePaint);
 
-            // Right Side Wall
             rightSidePath.reset();
             rightSidePath.moveTo(sx, sy + halfTH);
             rightSidePath.lineTo(sx + halfTW, sy);

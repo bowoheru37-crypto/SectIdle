@@ -155,6 +155,7 @@ public final class SectScene {
     private final SlashMiniGame slashMiniGame;
     private final HudManager hudManager = new HudManager();
     private final com.sect.idle.render.IsometricWorld isometricWorld = new com.sect.idle.render.IsometricWorld();
+    private final com.sect.idle.render.ParallaxEngine parallaxEngine = new com.sect.idle.render.ParallaxEngine();
     public void setSelectionListener(OnSelectionListener l) {
         this.selectionListener = l;
         Log.d(TAG, "setSelectionListener called, listener=" + (l != null));
@@ -392,6 +393,9 @@ public final class SectScene {
     public void update(float dt) {
         animTime += dt;
         if (tapMarkerLife > 0f) tapMarkerLife -= dt;
+        hudManager.update(dt);
+        parallaxEngine.update(dt);
+        isometricWorld.update(dt);
         if (slashMiniGame != null && slashMiniGame.isActive()) {
             slashMiniGame.update(dt);
             return;
@@ -541,9 +545,8 @@ public final class SectScene {
         }
 
         beginFrame(cam, data);
-        canvas.drawRect(0, 0, W, H, bgPaint);
-        renderParallax(canvas, cam, W, H);
-        renderTilemap(canvas, cam, W, H);
+        parallaxEngine.render(canvas, cam, W, H);
+        isometricWorld.render(canvas, cam, W, H);
         renderGrid(canvas, cam, W, H);
         if (enableShadows) renderShadows(canvas, cam, data);
         renderBuildings(canvas, cam, data, W, H);
@@ -663,7 +666,10 @@ public final class SectScene {
         for (int i = 0; i < buildingCount; i++) {
             Building b = data.buildings.get(i);
             if (b == null || !b.isBuilt) continue;
-            float px = cam.worldToScreenX(bldgX[i]), py = cam.worldToScreenY(bldgY[i]);
+            float bTileX = (bldgX[i] - MAP_ORIGIN_X) / TILE_SIZE;
+            float bTileY = (bldgY[i] - MAP_ORIGIN_Y) / TILE_SIZE;
+            float px = isometricWorld.getCamera3D().worldToScreenX(bTileX, bTileY);
+            float py = isometricWorld.getCamera3D().worldToScreenY(bTileX, bTileY, 15f);
             float size = BLDG_S * frameZoom, half = size * 0.5f, shadowOff = 8f * frameZoom;
             shadowPaint.setAlpha(80);
             r1.set(px - half + shadowOff, py - half + shadowOff, px + half + shadowOff, py + half + shadowOff);
@@ -671,7 +677,10 @@ public final class SectScene {
         }
         for (int i = 0; i < discipleCount; i++) {
             Disciple d = data.disciples.get(i); if (d == null) continue;
-            float px = cam.worldToScreenX(d.position.x), py = cam.worldToScreenY(d.position.y);
+            float dTileX = (d.position.x - MAP_ORIGIN_X) / TILE_SIZE;
+            float dTileY = (d.position.y - MAP_ORIGIN_Y) / TILE_SIZE;
+            float px = isometricWorld.getCamera3D().worldToScreenX(dTileX, dTileY);
+            float py = isometricWorld.getCamera3D().worldToScreenY(dTileX, dTileY, 0f);
             float rad = DISC_R * frameZoom;
             shadowPaint.setAlpha(60);
             r1.set(px - rad * 0.8f, py + rad * 0.3f, px + rad * 0.8f, py + rad * 0.8f);
@@ -685,7 +694,10 @@ public final class SectScene {
         for (int i = 0; i < buildingCount; i++) {
             Building b = data.buildings.get(i); if (b == null) continue;
             b.posX = (int) bldgX[i]; b.posY = (int) bldgY[i];
-            float px = cam.worldToScreenX(bldgX[i]), py = cam.worldToScreenY(bldgY[i]);
+            float bTileX = (bldgX[i] - MAP_ORIGIN_X) / TILE_SIZE;
+            float bTileY = (bldgY[i] - MAP_ORIGIN_Y) / TILE_SIZE;
+            float px = isometricWorld.getCamera3D().worldToScreenX(bTileX, bTileY);
+            float py = isometricWorld.getCamera3D().worldToScreenY(bTileX, bTileY, 15f);
             if (px < -size || px > W + size || py < -size || py > H + size) continue;
 
             if (b.isBuilt && zoom > 0.4f) {
@@ -745,7 +757,10 @@ public final class SectScene {
         namePaint.setTextSize(12f * zoom);
         for (int i = 0; i < discipleCount; i++) {
             Disciple d = data.disciples.get(i); if (d == null) continue;
-            float px = cam.worldToScreenX(d.position.x), py = cam.worldToScreenY(d.position.y);
+            float dTileX = (d.position.x - MAP_ORIGIN_X) / TILE_SIZE;
+            float dTileY = (d.position.y - MAP_ORIGIN_Y) / TILE_SIZE;
+            float px = isometricWorld.getCamera3D().worldToScreenX(dTileX, dTileY);
+            float py = isometricWorld.getCamera3D().worldToScreenY(dTileX, dTileY, 0f);
             if (px < -rad * 3f || px > W + rad * 3f || py < -rad * 3f || py > H + rad * 3f) continue;
             if (d.realm >= 5 && !lowEnd) {
                 float auraRadius = rad * (1.8f + (float) Math.sin(animTime * 3f + i) * 0.3f);
@@ -1086,8 +1101,12 @@ public final class SectScene {
             selectedDiscipleId = null;
             selectedDisciple = -1;
         }
+        hudManager.resetPanelAnim();
     }
-    public void setSelectedBuilding(int index) { selectedBuilding = index; }
+    public void setSelectedBuilding(int index) {
+        selectedBuilding = index;
+        hudManager.resetPanelAnim();
+    }
     public int getSelectedDisciple() { return selectedDisciple; }
     public void resetSelection() {
         selectedDiscipleId = null;

@@ -194,13 +194,26 @@ public final class HudManager {
         return 0;
     }
 
+    private float panelAnimTimer = 0f;
+
+    public void update(float dt) {
+        panelAnimTimer += dt * 4f;
+        if (panelAnimTimer > 1f) panelAnimTimer = 1f;
+    }
+
+    public void resetPanelAnim() {
+        panelAnimTimer = 0f;
+    }
+
     public void renderDiscipleDrawer(Canvas canvas, Disciple d, int W, int H) {
         if (canvas == null || d == null) return;
 
+        float animProgress = (float) Math.sin(panelAnimTimer * Math.PI * 0.5);
         float panelW = Math.min(320f, W * 0.85f);
         float panelH = 180f;
-        float panelX = 16f;
+        float panelX = 16f - (1f - animProgress) * panelW;
         float panelY = H - 240f;
+        int alpha = (int) (240 * animProgress);
 
         bgPaint.setColor(0xF0120A24);
         r1.set(panelX, panelY, panelX + panelW, panelY + panelH);
@@ -225,9 +238,10 @@ public final class HudManager {
     public void renderBuildingDrawer(Canvas canvas, Building b, int W, int H) {
         if (canvas == null || b == null) return;
 
+        float animProgress = (float) Math.sin(panelAnimTimer * Math.PI * 0.5);
         float panelW = Math.min(320f, W * 0.85f);
         float panelH = 160f;
-        float panelX = 16f;
+        float panelX = 16f - (1f - animProgress) * panelW;
         float panelY = H - 220f;
 
         bgPaint.setColor(0xF0120A24);
