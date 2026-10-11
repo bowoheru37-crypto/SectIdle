@@ -12,7 +12,7 @@ import android.graphics.Path;
  */
 public final class VoxelMeshBuilder {
     private final int sizeX, sizeY, sizeZ;
-    private final int[][][] voxels; // Color ARGB per voxel
+    private final int[] voxelGrid; // Ultra-fast flat 1D ARGB buffer for zero GC overhead
 
     private final Paint topPaint;
     private final Paint leftPaint;
@@ -23,7 +23,7 @@ public final class VoxelMeshBuilder {
         this.sizeX = sx;
         this.sizeY = sy;
         this.sizeZ = sz;
-        this.voxels = new int[sx][sy][sz];
+        this.voxelGrid = new int[sx * sy * sz];
 
         this.topPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         this.leftPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -32,18 +32,16 @@ public final class VoxelMeshBuilder {
     }
 
     public void clear() {
-        for (int x = 0; x < sizeX; x++) {
-            for (int y = 0; y < sizeY; y++) {
-                for (int z = 0; z < sizeZ; z++) {
-                    voxels[x][y][z] = 0;
-                }
-            }
-        }
+        java.util.Arrays.fill(voxelGrid, 0);
+    }
+
+    private int getIndex(int x, int y, int z) {
+        return (x * sizeY + y) * sizeZ + z;
     }
 
     public void setVoxel(int x, int y, int z, int color) {
         if (x >= 0 && x < sizeX && y >= 0 && y < sizeY && z >= 0 && z < sizeZ) {
-            voxels[x][y][z] = color;
+            voxelGrid[getIndex(x, y, z)] = color;
         }
     }
 
@@ -51,7 +49,7 @@ public final class VoxelMeshBuilder {
         for (int x = Math.max(0, x1); x <= Math.min(sizeX - 1, x2); x++) {
             for (int y = Math.max(0, y1); y <= Math.min(sizeY - 1, y2); y++) {
                 for (int z = Math.max(0, z1); z <= Math.min(sizeZ - 1, z2); z++) {
-                    voxels[x][y][z] = color;
+                    voxelGrid[getIndex(x, y, z)] = color;
                 }
             }
         }
@@ -65,7 +63,7 @@ public final class VoxelMeshBuilder {
                 int dy = y - cy;
                 if (dx * dx + dy * dy <= rSq) {
                     for (int z = Math.max(0, z1); z <= Math.min(sizeZ - 1, z2); z++) {
-                        voxels[x][y][z] = color;
+                        voxelGrid[getIndex(x, y, z)] = color;
                     }
                 }
             }
@@ -92,7 +90,7 @@ public final class VoxelMeshBuilder {
                     int z = sum - x - y;
                     if (z < 0 || z >= sizeZ) continue;
 
-                    int color = voxels[x][y][z];
+                    int color = voxelGrid[getIndex(x, y, z)];
                     if (color == 0) continue;
 
                     // Compute isometric projection point

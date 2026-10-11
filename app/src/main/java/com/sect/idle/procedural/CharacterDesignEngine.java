@@ -32,6 +32,37 @@ public final class CharacterDesignEngine {
         public int footwearType;
         public int propType; // 0=Flying Sword, 1=Spirit Gourd, 2=Celestial Wings, 3=Nine-Ring Staff
         public int auraColor;
+
+        /**
+         * Packs character traits into a single 64-bit bitmask for zero-allocation memory transmission.
+         */
+        public long packToBitmask() {
+            long mask = 0L;
+            mask |= (gender & 0x1L);
+            mask |= ((fashionStyle & 0x7L) << 1);
+            mask |= ((hairStyle & 0x7L) << 4);
+            mask |= ((facialMark & 0x7L) << 7);
+            mask |= ((footwearType & 0x7L) << 10);
+            mask |= ((propType & 0x7L) << 13);
+            mask |= (((long) (robeColor & 0xFFFFFF)) << 16);
+            return mask;
+        }
+
+        public static CharacterTraits unpackFromBitmask(long mask) {
+            CharacterTraits t = new CharacterTraits();
+            t.gender = (int) (mask & 0x1L);
+            t.fashionStyle = (int) ((mask >> 1) & 0x7L);
+            t.hairStyle = (int) ((mask >> 4) & 0x7L);
+            t.facialMark = (int) ((mask >> 7) & 0x7L);
+            t.footwearType = (int) ((mask >> 10) & 0x7L);
+            t.propType = (int) ((mask >> 13) & 0x7L);
+            int rgb = (int) ((mask >> 16) & 0xFFFFFFL);
+            t.robeColor = 0xFF000000 | rgb;
+            t.trimColor = 0xFFFFD700;
+            t.hairColor = (t.gender == 1) ? 0xFF212121 : 0xFF3E2723;
+            t.auraColor = 0xFF00E5FF;
+            return t;
+        }
     }
 
     private static final Paint P = new Paint(Paint.ANTI_ALIAS_FLAG);
