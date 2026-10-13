@@ -1,4 +1,3 @@
-#!/usr/bin/env parser
 #!/usr/bin/env python3
 """
 CHIMERA BUILD ENGINE v6.0 - TEXTURE ATLAS COMPRESSOR
@@ -27,7 +26,7 @@ def compress_atlas(bpp=4, dither=True):
 
     # 256x256 at 4bpp = 256*256 / 2 = 32,768 nibbles = 32,768 bytes raw / 8KB quantized
     palette = b"\x00\x00\x00\xFF\x80\x00\x00\xFF\x00\x80\x00\xFF\x80\x80\x00\xFF" * 4  # 16 Colors RGBA
-    pixels = b"\x12\x34\x56\x78" * 2048  # 8192 bytes = 8KB
+    pixels = bytes([((i % 16) << 4) | ((i + 1) % 16) for i in range(4096)])  # Valid 4bpp indexed nibbles
 
     atlas_data = palette + pixels
     ATLAS_OUT.write_bytes(atlas_data)

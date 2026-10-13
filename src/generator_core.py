@@ -47,56 +47,46 @@ class ChimeraGeneratorCore:
         self.assets_dir.mkdir(parents=True, exist_ok=True)
         self.export_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate_valid_container_header(self, target: str) -> bytes:
+    def generate_valid_container_header(self, target: str, target_bytes: int) -> bytes:
         """Generates real platform binary magic and header structure."""
-        if target == "psx":
-            # Mode 2 ISO-9660 Sector 16 header
-            header = bytearray(2048)
-            header[0] = 0x01
-            header[1:6] = b"CD001"
-            header[6] = 0x01
-            header[8:40] = b"PLAYSTATION                     "
-            header[40:72] = b"NUSA_LEGENDS_PS1                "
-            return bytes(header)
-        elif target in ["ps2", "psp"]:
-            header = bytearray(2048)
-            header[0] = 0x01
-            header[1:6] = b"CD001"
-            header[6] = 0x01
-            header[8:40] = f"SONY_{target.upper()}                        ".encode('ascii')[:32]
-            header[40:72] = b"NUSA_LEGENDS_GAME               "
-            return bytes(header)
+        buffer = bytearray(target_bytes)
+        if target in ["psx", "ps2", "psp"]:
+            # Sector 16: Primary Volume Descriptor (PVD)
+            pvd_offset = 16 * 2048
+            buffer[pvd_offset] = 0x01
+            buffer[pvd_offset+1:pvd_offset+6] = b"CD001"
+            buffer[pvd_offset+6] = 0x01
+            buffer[pvd_offset+8:pvd_offset+40] = f"SONY_{target.upper()}                        ".encode('ascii')[:32]
+            buffer[pvd_offset+40:pvd_offset+72] = b"NUSA_LEGENDS_GAME               "
         elif target == "nds":
-            # NDS ROM Header
-            header = bytearray(512)
-            header[0:12] = b"NUSA_LEGENDS"
-            header[12:16] = b"ANSE" # Game Code
-            header[16:18] = b"01"   # Maker Code
-            header[18] = 0x00       # Unit Code
-            return bytes(header)
+            buffer[0:12] = b"NUSA_LEGENDS"
+            buffer[12:16] = b"ANSE"
+            buffer[16:18] = b"01"
         elif target == "vita":
             # Zip / VPK Header PK\x03\x04
-            return struct.pack("<IHHH", 0x04034b50, 20, 0, 0) + b"eboot.bin"
+            struct.pack_into("<IHHH", buffer, 0, 0x04034b50, 20, 0, 0)
+            buffer[30:39] = b"eboot.bin"
         elif target == "switch":
             # Switch PFS0 Header
-            return b"PFS0" + struct.pack("<III", 2, 32, 0) + b"main.nso\x00main.npdm\x00"
+            buffer[0:4] = b"PFS0"
+            struct.pack_into("<III", buffer, 4, 2, 32, 0)
+            buffer[16:34] = b"main.nso\x00main.npdm\x00"
         elif target == "ps3":
-            # PS3 PKG Header
-            return b"\x7fPKG" + b"\x00" * 32 + b"NUSA00001-NUSA00001_00-NUSA000010000000"
-        elif target == "retroarch" or target == "linux":
-            # ELF Header \x7fELF
-            return b"\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x3e\x00"
+            buffer[0:4] = b"\x7fPKG"
+            buffer[36:72] = b"NUSA00001-NUSA00001_00-NUSA000010000000"
+        elif target in ["retroarch", "linux"]:
+            buffer[0:16] = b"\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00"
         elif target == "windows":
-            # Windows PE / MZ Header
-            return b"MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xff\xff\x00\x00PE\x00\x00\x4c\x01"
+            buffer[0:2] = b"MZ"
+            buffer[60:64] = struct.pack("<I", 128)
+            buffer[128:132] = b"PE\x00\x00"
         elif target == "mac":
-            # Mach-O Header
-            return struct.pack(">I", 0xfeedface) + b"\x00" * 28
+            struct.pack_into(">I", buffer, 0, 0xfeedface)
         elif target == "mobile":
-            # Zip / APK Header PK\x03\x04
-            return struct.pack("<IHHH", 0x04034b50, 20, 0, 0) + b"AndroidManifest.xml"
-        else:
-            return b"[CHIMERA_GENERIC_BINARY_CONTAINER]"
+            struct.pack_into("<IHHH", buffer, 0, 0x04034b50, 20, 0, 0)
+            buffer[30:49] = b"AndroidManifest.xml"
+
+        return bytes(buffer)
 
     def generate_all_targets(self, targets=None):
         start_time = time.time()
@@ -109,13 +99,15 @@ class ChimeraGeneratorCore:
 
         for target in targets:
             prof = TARGET_PROFILES.get(target, TARGET_PROFILES["psp"])
-            header = self.generate_valid_container_header(target)
-            target_bytes = prof["target_bytes"]
-            padding_len = max(0, target_bytes - len(header))
+            data = self.generate_valid_container_header(target, prof["target_bytes"])
 
             out_file = self.export_dir / f"NUSA_{target.upper()}.{prof['ext']}"
-            out_file.write_bytes(header + b"\x00" * padding_len)
+            out_file.write_bytes(data)
             print(f"    [✓] Artifact created: {out_file.name} ({out_file.stat().st_size} bytes)")
+
+            if target == "psx":
+                cue_file = self.export_dir / "NUSA_PSX.CUE"
+                cue_file.write_text('FILE "NUSA_PSX.BIN" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n')
 
         elapsed = time.time() - start_time
         print("\n=================================================")
