@@ -16,3 +16,12 @@
 local.properties
 .env
 debug.keystore
+
+# Node & Chimera Build Artifacts
+node_modules/
+package-lock.json
+/export/
+/sdk/
+__pycache__/
+*.log
+*.tmp

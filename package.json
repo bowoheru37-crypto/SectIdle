@@ -1,0 +1,40 @@
+{
+  "name": "chimera-unified-sdk",
+  "version": "5.0.0",
+  "description": "Chimera Unified SDK v5.0 - Lightweight Multiplatform Pipeline for Itel A70 & Multi-Console Export",
+  "main": "build.js",
+  "type": "commonjs",
+  "scripts": {
+    "build": "node build.js --all",
+    "build:ps2": "node build.js --ps2",
+    "build:nds": "node build.js --nds",
+    "build:psp": "node build.js --psp",
+    "build:vita": "node build.js --vita",
+    "build:switch": "node build.js --switch",
+    "build:ps3": "node build.js --ps3",
+    "build:desktop": "node build.js --desktop",
+    "build:mobile": "node build.js --mobile",
+    "setup": "bash setup.sh"
+  },
+  "dependencies": {
+    "typescript": "^5.3.3",
+    "three": "^0.128.0",
+    "voxel-mesh": "file:./packages/voxel-mesh",
+    "ps1-tmd-converter": "file:./packages/ps1-tmd-converter",
+    "iso-builder": "file:./packages/iso-builder",
+    "vpk-builder": "file:./packages/vpk-builder",
+    "nsp-builder": "file:./packages/nsp-builder"
+  },
+  "keywords": [
+    "chimera-sdk",
+    "multiplatform",
+    "ps2",
+    "nds",
+    "psp",
+    "vita",
+    "switch",
+    "ps3"
+  ],
+  "author": "Chimera Dev Team",
+  "license": "MIT"
+}
