@@ -1,6 +1,11 @@
 {
-  "name": "Idle Sect",
-  "description": "Idle cultivation sect simulation RPG with real-time world canvas, disciple management, battles, and Gemini AI grandmaster.",
+  "name": "Sect Idle / Nusa Legends",
+  "version": "6.0.0",
+  "description": "Idle cultivation sect simulation RPG with Chimera Build Engine v6.0 1-click multiplatform console export, Game Visual UI Designer, Sketchware Pro v7.0.0 support, and Gemini AI grandmaster.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API",
+    "MAJOR_CAPABILITY_CHIMERA_MULTIPLATFORM_EXPORT"
+  ],
+  "license": "MIT"
 }
