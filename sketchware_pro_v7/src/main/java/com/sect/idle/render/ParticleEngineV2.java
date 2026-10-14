@@ -42,6 +42,8 @@ public final class ParticleEngineV2 {
     private final Paint particlePaint;
     private final Paint additivePaint;
     private final Paint glowPaint;
+    // Pre-allocated RectF to eliminate GC object churn in render loop
+    private final android.graphics.RectF tempRect;
     private int screenW, screenH;
 
     public ParticleEngineV2(int screenW, int screenH) {
@@ -64,6 +66,7 @@ public final class ParticleEngineV2 {
         this.additivePaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.ADD));
         this.glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         this.glowPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.ADD));
+        this.tempRect = new android.graphics.RectF();
     }
 
     public void resize(int w, int h) {
@@ -234,7 +237,9 @@ public final class ParticleEngineV2 {
                     break;
                 case TYPE_QI_PETAL:
                     particlePaint.setColor(color);
-                    canvas.drawOval(new android.graphics.RectF(sx - ss * 1.5f, sy - ss * 0.8f, sx + ss * 1.5f, sy + ss * 0.8f), particlePaint);
+                    // Optimized: Reuse pre-allocated tempRect to avoid per-frame GC object allocations
+                    tempRect.set(sx - ss * 1.5f, sy - ss * 0.8f, sx + ss * 1.5f, sy + ss * 0.8f);
+                    canvas.drawOval(tempRect, particlePaint);
                     break;
                 case TYPE_SMOKE:
                     particlePaint.setColor(color);
