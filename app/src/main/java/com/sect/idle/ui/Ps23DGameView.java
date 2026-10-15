@@ -11,11 +11,13 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import com.sect.idle.procedural.Xianxia3DTerrainGenerator;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * PS2-Quality 3D Game View & Software Renderer
+ * PS2-Quality 3D Game View & Software Renderer - Xianxia Immortal Realm Edition
  * Optimized for Itel A70 (1GB RAM) & Sketchware Pro v7.0.0
  * Features 3D vertex projection, Gouraud shading, 60 FPS double-buffered SurfaceView.
  */
@@ -64,14 +66,11 @@ public class Ps23DGameView extends SurfaceView implements SurfaceHolder.Callback
     private Paint textPaint;
     private Path polyPath;
     private float camX, camY, camZ;
-    private float rotY;
     private float focalLength;
 
     // Gameplay States
     private float heroX, heroY, heroZ;
-    private float enemyX, enemyY, enemyZ;
     private int heroHp, heroMaxHp;
-    private int enemyHp, enemyMaxHp;
     private List<Polygon3D> worldPolygons;
     private Particle[] particlePool;
     private int maxParticles;
@@ -102,23 +101,16 @@ public class Ps23DGameView extends SurfaceView implements SurfaceHolder.Callback
         polyPath = new Path();
 
         camX = 0;
-        camY = -120f;
+        camY = -140f;
         camZ = -300f;
-        rotY = 0;
         focalLength = 320f;
 
         heroX = 0;
-        heroY = 0;
+        heroY = 20f;
         heroZ = 0;
-
-        enemyX = 60f;
-        enemyY = 0;
-        enemyZ = 80f;
 
         heroHp = 100;
         heroMaxHp = 100;
-        enemyHp = 150;
-        enemyMaxHp = 150;
 
         maxParticles = 64;
         particlePool = new Particle[maxParticles];
@@ -130,30 +122,7 @@ public class Ps23DGameView extends SurfaceView implements SurfaceHolder.Callback
     }
 
     private void build3DWorld() {
-        worldPolygons = new ArrayList<Polygon3D>();
-
-        // Ground Plane (3D Grid)
-        for (int x = -200; x <= 200; x += 100) {
-            for (int z = -200; z <= 200; z += 100) {
-                Vec3[] quad = new Vec3[] {
-                    new Vec3(x, 0, z),
-                    new Vec3(x + 90, 0, z),
-                    new Vec3(x + 90, 0, z + 90),
-                    new Vec3(x, 0, z + 90)
-                };
-                int col = ((x + z) % 200 == 0) ? Color.rgb(34, 139, 34) : Color.rgb(46, 117, 46);
-                worldPolygons.add(new Polygon3D(quad, col));
-            }
-        }
-
-        // Sect Main Pavilion (3D Cube)
-        Vec3[] pavilionBase = new Vec3[] {
-            new Vec3(-50, -60, 150),
-            new Vec3(50, -60, 150),
-            new Vec3(50, 0, 150),
-            new Vec3(-50, 0, 150)
-        };
-        worldPolygons.add(new Polygon3D(pavilionBase, Color.rgb(180, 50, 50)));
+        worldPolygons = Xianxia3DTerrainGenerator.generateXianxiaWorld();
     }
 
     @Override
@@ -224,12 +193,12 @@ public class Ps23DGameView extends SurfaceView implements SurfaceHolder.Callback
     }
 
     private void render3DScene(Canvas canvas) {
-        canvas.drawColor(Color.rgb(135, 206, 235)); // PS2 Sky Blue
+        canvas.drawColor(Color.rgb(135, 206, 235)); // Xianxia Celestial Blue
 
         float cx = getWidth() / 2f;
         float cy = getHeight() / 2f;
 
-        // Project and render 3D polygons
+        // Project and render Xianxia 3D polygons
         for (int i = 0; i < worldPolygons.size(); i++) {
             Polygon3D poly = worldPolygons.get(i);
             polyPath.reset();
@@ -272,7 +241,7 @@ public class Ps23DGameView extends SurfaceView implements SurfaceHolder.Callback
             }
         }
 
-        // Render Hero 3D Marker
+        // Render Hero Cultivator Marker
         float htx = heroX - camX;
         float hty = heroY - camY - 20f;
         float htz = heroZ - camZ;
@@ -284,7 +253,7 @@ public class Ps23DGameView extends SurfaceView implements SurfaceHolder.Callback
             canvas.drawCircle(hsx, hsy, 16f, paint);
         }
 
-        // Render HUD & Stats
+        // Render HUD & Xianxia Info
         renderHUD(canvas);
     }
 
@@ -292,14 +261,14 @@ public class Ps23DGameView extends SurfaceView implements SurfaceHolder.Callback
         // Player HP Bar
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(Color.DKGRAY);
-        canvas.drawRoundRect(new RectF(30, 30, 250, 60), 8f, 8f, paint);
+        canvas.drawRoundRect(new RectF(30, 30, 270, 60), 8f, 8f, paint);
 
-        paint.setColor(Color.RED);
-        float hpWidth = (220f * heroHp) / heroMaxHp;
+        paint.setColor(Color.rgb(255, 215, 0)); // Golden Qi
+        float hpWidth = (235f * heroHp) / heroMaxHp;
         canvas.drawRoundRect(new RectF(35, 35, 35 + hpWidth, 55), 6f, 6f, paint);
 
-        canvas.drawText("Sect Leader HP: " + heroHp + "/" + heroMaxHp, 35, 85, textPaint);
-        canvas.drawText("PS2 3D Software Engine - 60 FPS (Itel A70)", 35, getHeight() - 40, textPaint);
+        canvas.drawText("Immortal Sect Master - Golden Core Realm", 35, 85, textPaint);
+        canvas.drawText("Xianxia 3D Immortal Peak World - 60 FPS (Itel A70)", 35, getHeight() - 40, textPaint);
 
         // Virtual D-Pad Touch Controls
         paint.setStyle(Paint.Style.STROKE);
