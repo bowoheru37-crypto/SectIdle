@@ -149,7 +149,7 @@ if (canvas) {
             targets = list(TARGET_PROFILES.keys())
 
         print("=================================================")
-        print("  CHIMERA GENERATOR CORE v5.0 - PYTHON PIPELINE  ")
+        print("  CHIMERA GENERATOR CORE v6.0 - PYTHON PIPELINE  ")
         print("=================================================")
 
         for target in targets:
@@ -160,6 +160,13 @@ if (canvas) {
             elif target == "ios":
                 self.generate_ios_package()
                 print("    [✓] iOS App Package created: export/NUSA_IOS_PACKAGE.ipa")
+                continue
+            elif target == "mobile":
+                try:
+                    from src.installer_packager import build_mobile_installer
+                except ImportError:
+                    from installer_packager import build_mobile_installer
+                build_mobile_installer()
                 continue
 
             prof = TARGET_PROFILES.get(target, TARGET_PROFILES["psp"])
