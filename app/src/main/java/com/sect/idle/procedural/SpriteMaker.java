@@ -20,6 +20,11 @@ public final class SpriteMaker {
     private static final Path PATH = new Path();
 
     public static Bitmap createDisciple(int w, int h, int element, int realm, boolean male, int task, long seed) {
+        CharacterDesignEngine.CharacterTraits traits = CharacterDesignEngine.generateTraitsFromDisciple(realm, element, male, seed);
+        return CharacterDesignEngine.renderCharacterHeadToToe(traits, w, h);
+    }
+
+    public static Bitmap createDiscipleLegacy(int w, int h, int element, int realm, boolean male, int task, long seed) {
         Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         java.util.Random rand = new java.util.Random(seed);

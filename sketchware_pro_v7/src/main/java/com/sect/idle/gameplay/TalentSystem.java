@@ -57,6 +57,24 @@ public final class TalentSystem {
         d.recalcCombat();
     }
 
+    public static Disciple generateRecruitDisciple(int rarity) {
+        Disciple d = new Disciple("Disciple " + (System.currentTimeMillis() % 10000));
+        d.element = RNG.nextInt(1, 10);
+        d.personality = RNG.nextInt(1, 15);
+        generateTalent(d);
+
+        // Scale attributes by rarity
+        int statBonus = rarity * 5;
+        d.str += statBonus;
+        d.agi += statBonus;
+        d.intel += statBonus;
+        d.vit += statBonus;
+        d.lck += statBonus;
+        d.recalcCombat();
+
+        return d;
+    }
+
     public static void applyGrowth(Disciple d) {
         if (d == null || !d.isAlive()) return;
         int growth = d.talentGrade > 0 ? d.talentGrade : 1;

@@ -99,4 +99,22 @@ public final class Fake3D {
         canvas.drawOval(tempRect, shadowPaint);
         shadowPaint.setAlpha(255);
     }
+
+    public void renderParallaxBackground(Canvas canvas, CameraSystem cam) {
+        if (canvas == null || cam == null) return;
+        int width = canvas.getWidth();
+        int height = canvas.getHeight();
+
+        float camX = cam.pos.x * 0.1f;
+        float camY = cam.pos.y * 0.1f;
+
+        // Multi-Layer Mountain Parallax (Aesthetic Xianxia Atmosphere)
+        heightPaint.setColor(0xFF1E2638); // Distant spiritual mountain range
+        tempRect.set(0, height * 0.3f - (camY * 0.2f), width, height);
+        canvas.drawRect(tempRect, heightPaint);
+
+        heightPaint.setColor(0xFF0F172A); // Midground mist
+        tempRect.set(0, height * 0.5f - (camY * 0.5f), width, height);
+        canvas.drawRect(tempRect, heightPaint);
+    }
 }

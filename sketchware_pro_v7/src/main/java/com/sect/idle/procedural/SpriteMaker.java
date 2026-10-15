@@ -20,6 +20,11 @@ public final class SpriteMaker {
     private static final Path PATH = new Path();
 
     public static Bitmap createDisciple(int w, int h, int element, int realm, boolean male, int task, long seed) {
+        CharacterDesignEngine.CharacterTraits traits = CharacterDesignEngine.generateTraitsFromDisciple(realm, element, male, seed);
+        return CharacterDesignEngine.renderCharacterHeadToToe(traits, w, h);
+    }
+
+    public static Bitmap createDiscipleLegacy(int w, int h, int element, int realm, boolean male, int task, long seed) {
         Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         java.util.Random rand = new java.util.Random(seed);
@@ -166,6 +171,14 @@ public final class SpriteMaker {
         }
 
         return bmp;
+    }
+
+    public static String generateAcgTitle(int realm, int element) {
+        String[] prefixes = {"Heavenly", "Divine", "Mystic", "Immortal", "Shadow", "Supreme"};
+        String[] suffixes = {"Swordmaster", "Flame Emperor", "Lotus Saint", "Dao Monarch", "Sovereign"};
+        int pIdx = (int) (Math.abs(realm + element) % prefixes.length);
+        int sIdx = (int) (Math.abs(realm * 3 + element) % suffixes.length);
+        return prefixes[pIdx] + " " + suffixes[sIdx];
     }
 
     public static Bitmap createBuilding(int size, int type, int level, long seed) {
