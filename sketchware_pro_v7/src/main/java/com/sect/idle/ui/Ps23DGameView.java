@@ -80,6 +80,10 @@ public class Ps23DGameView extends SurfaceView implements SurfaceHolder.Callback
     private boolean isTouchingPad;
     private float moveDx, moveDz;
 
+    // Pre-allocated HUD geometry to avoid GC object allocation in 60 FPS render loop
+    private final RectF hudBgRect = new RectF();
+    private final RectF hudHpRect = new RectF();
+
     public Ps23DGameView(Context context) {
         super(context);
         init();
@@ -261,11 +265,15 @@ public class Ps23DGameView extends SurfaceView implements SurfaceHolder.Callback
         // Player HP Bar
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(Color.DKGRAY);
-        canvas.drawRoundRect(new RectF(30, 30, 270, 60), 8f, 8f, paint);
+        // Pre-allocated RectF reuse to prevent GC object churn in render loop
+        hudBgRect.set(30f, 30f, 270f, 60f);
+        canvas.drawRoundRect(hudBgRect, 8f, 8f, paint);
 
         paint.setColor(Color.rgb(255, 215, 0)); // Golden Qi
         float hpWidth = (235f * heroHp) / heroMaxHp;
-        canvas.drawRoundRect(new RectF(35, 35, 35 + hpWidth, 55), 6f, 6f, paint);
+        // Pre-allocated RectF reuse
+        hudHpRect.set(35f, 35f, 35f + hpWidth, 55f);
+        canvas.drawRoundRect(hudHpRect, 6f, 6f, paint);
 
         canvas.drawText("Immortal Sect Master - Golden Core Realm", 35, 85, textPaint);
         canvas.drawText("Xianxia 3D Immortal Peak World - 60 FPS (Itel A70)", 35, getHeight() - 40, textPaint);
