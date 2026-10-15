@@ -3,14 +3,14 @@
 /**
  * CHIMERA BUILD ENGINE v6.0 FINAL POLISH - MAX OPTIMIZED
  * 1-Click Multiplatform Build Pipeline for Itel A70 (RAM 1GB)
- * Exports Consoles (PSX, PS2, NDS, PSP, Vita, Switch, PS3) + RetroArch + Desktop + Mobile
+ * Exports Consoles (PSX, PS2, NDS, PSP, Vita, Switch, PS3) + RetroArch + Desktop + Mobile + iOS + Web
  */
 
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const VALID_TARGETS = ['psx', 'ps2', 'nds', 'psp', 'vita', 'switch', 'ps3', 'retroarch', 'windows', 'mac', 'linux', 'desktop', 'mobile'];
+const VALID_TARGETS = ['psx', 'ps2', 'nds', 'psp', 'vita', 'switch', 'ps3', 'retroarch', 'windows', 'mac', 'linux', 'desktop', 'mobile', 'ios', 'web'];
 
 function parseTargetFlags() {
   const args = process.argv.slice(2);
@@ -61,7 +61,7 @@ function main() {
   console.log("\n[4/4] Verifying generated export artifacts...");
   const exportDir = path.join(__dirname, 'export');
   if (fs.existsSync(exportDir)) {
-    const files = fs.readdirSync(exportDir).filter(f => f !== 'assets_polished');
+    const files = fs.readdirSync(exportDir).filter(f => f !== 'assets_polished' && f !== 'web');
     let totalBytes = 0;
     files.forEach(file => {
       const fullPath = path.join(exportDir, file);

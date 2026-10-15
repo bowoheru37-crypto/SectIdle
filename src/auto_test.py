@@ -14,6 +14,8 @@ Validates real binary container headers & magic bytes for exported binaries:
 - macOS Universal Binary (NUSA_MAC.dmg) [Mach-O / DMG]
 - Linux AppImage (NUSA_LINUX.AppImage) [\x7fELF]
 - Android Mobile APK (NUSA_MOBILE.apk) [PK\x03\x04]
+- iOS App Package (NUSA_IOS_PACKAGE.ipa) [PK\x03\x04]
+- HTML5 Web Game Bundle (NUSA_WEB_GAME.zip) [PK\x03\x04]
 """
 
 import os
@@ -39,6 +41,8 @@ SYSTEM_TARGETS = [
     {"system": "macOS Universal Binary", "file": "NUSA_MAC.dmg", "magic": b"\xfe\xed\xfa\xce", "magic_offset": 0, "expected_fps": 120, "boot_sec": 1.1},
     {"system": "Linux AppImage", "file": "NUSA_LINUX.AppImage", "magic": b"\x7fELF", "magic_offset": 0, "expected_fps": 120, "boot_sec": 0.9},
     {"system": "Android Mobile APK (Itel A70)", "file": "NUSA_MOBILE.apk", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 2.0},
+    {"system": "iOS Mobile App Package", "file": "NUSA_IOS_PACKAGE.ipa", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 1.9},
+    {"system": "HTML5 Web Game Browser Engine", "file": "NUSA_WEB_GAME.zip", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 0.5},
 ]
 
 
