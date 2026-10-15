@@ -50,6 +50,9 @@ public class GameVisualUiDesigner extends View {
     private boolean isDragging;
     private int gridSize;
 
+    // Pre-allocated RectF to eliminate GC object churn in component rendering
+    private final RectF tempCompRect = new RectF();
+
     public GameVisualUiDesigner(Context context) {
         super(context);
         init();
@@ -93,16 +96,19 @@ public class GameVisualUiDesigner extends View {
         for (int i = 0; i < components.size(); i++) {
             UiComponent comp = components.get(i);
 
+            // Reuse pre-allocated RectF object
+            tempCompRect.set(comp.x, comp.y, comp.x + comp.width, comp.y + comp.height);
+
             // Draw Component fill
             paint.setStyle(Paint.Style.FILL);
             paint.setColor(comp.color);
-            canvas.drawRoundRect(new RectF(comp.x, comp.y, comp.x + comp.width, comp.y + comp.height), 8f, 8f, paint);
+            canvas.drawRoundRect(tempCompRect, 8f, 8f, paint);
 
             // Draw border selection
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeWidth(comp.isSelected ? 4f : 2f);
             paint.setColor(comp.isSelected ? Color.YELLOW : Color.WHITE);
-            canvas.drawRoundRect(new RectF(comp.x, comp.y, comp.x + comp.width, comp.y + comp.height), 8f, 8f, paint);
+            canvas.drawRoundRect(tempCompRect, 8f, 8f, paint);
 
             // Draw text label
             paint.setStyle(Paint.Style.FILL);
