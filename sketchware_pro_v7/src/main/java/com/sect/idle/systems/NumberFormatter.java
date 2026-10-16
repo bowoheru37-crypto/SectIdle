@@ -1,55 +1,128 @@
 package com.sect.idle.systems;
 
-import java.text.DecimalFormat;
-
+/**
+ * NumberFormatter - High-performance number formatting utility.
+ * Optimized for 60 FPS rendering on memory-constrained devices (e.g. Itel A70 1GB RAM).
+ * Avoids java.text.DecimalFormat overhead and eliminates intermediate string object churn
+ * when paired with reusable StringBuilders.
+ */
 public final class NumberFormatter {
     private static final String[] SUFFIXES = {"","K","M","B","T","Qa","Qi","Sx","Sp","Oc","No","Dc"};
-    private static final DecimalFormat DF = new DecimalFormat("0.0");
-    private static final DecimalFormat DF2 = new DecimalFormat("0.00");
-    private static final DecimalFormat DF_INT = new DecimalFormat("#,###");
 
     private NumberFormatter() {}
 
+    /**
+     * Appends a long integer formatted with standard thousands separators (e.g. 123,456)
+     * directly into a StringBuilder without DecimalFormat overhead or extra heap allocations.
+     */
+    public static void appendFormattedInt(long num, StringBuilder sb) {
+        if (num < 0) {
+            sb.append('-');
+            num = -num;
+        }
+        if (num < 1000L) {
+            sb.append(num);
+            return;
+        }
+        long thousands = num / 1000L;
+        int rem = (int)(num % 1000L);
+        appendFormattedInt(thousands, sb);
+        sb.append(',');
+        if (rem < 10) sb.append("00");
+        else if (rem < 100) sb.append('0');
+        sb.append(rem);
+    }
+
+    /**
+     * Appends a double formatted to 1 decimal place (e.g. 12.3) directly into a StringBuilder.
+     */
+    public static void append1Dec(double num, StringBuilder sb) {
+        if (num < 0) {
+            sb.append('-');
+            num = -num;
+        }
+        long scaled = (long)(num * 10.0 + 0.5);
+        long integral = scaled / 10;
+        int dec = (int)(scaled % 10);
+        sb.append(integral).append('.').append(dec);
+    }
+
+    /**
+     * Appends a double formatted to 2 decimal places (e.g. 12.34) directly into a StringBuilder.
+     */
+    public static void append2Dec(double num, StringBuilder sb) {
+        if (num < 0) {
+            sb.append('-');
+            num = -num;
+        }
+        long scaled = (long)(num * 100.0 + 0.5);
+        long integral = scaled / 100;
+        int dec = (int)(scaled % 100);
+        sb.append(integral).append('.');
+        if (dec < 10) sb.append('0');
+        sb.append(dec);
+    }
+
     public static String format(long num) {
-        if (num < 1000L) return String.valueOf(num);
-        if (num < 1000000L) return DF_INT.format(num);
-        int idx = 0;
-        double d = num;
-        while (d >= 1000.0 && idx < SUFFIXES.length - 1) { d /= 1000.0; idx++; }
-        return DF.format(d) + SUFFIXES[idx];
+        StringBuilder sb = new StringBuilder(16);
+        format(num, sb);
+        return sb.toString();
     }
 
     public static String format(long num, StringBuilder sb) {
-        if (sb == null) return format(num);
-        sb.setLength(0);
-        if (num < 1000L) return sb.append(num).toString();
-        if (num < 1000000L) return sb.append(DF_INT.format(num)).toString();
+        if (sb == null) sb = new StringBuilder(16);
+        else sb.setLength(0);
+
+        if (num < 1000L) {
+            sb.append(num);
+            return sb.toString();
+        }
+        if (num < 1000000L) {
+            appendFormattedInt(num, sb);
+            return sb.toString();
+        }
+
         int idx = 0;
         double d = num;
-        while (d >= 1000.0 && idx < SUFFIXES.length - 1) { d /= 1000.0; idx++; }
-        return sb.append(DF.format(d)).append(SUFFIXES[idx]).toString();
+        while (d >= 1000.0 && idx < SUFFIXES.length - 1) {
+            d /= 1000.0;
+            idx++;
+        }
+        append1Dec(d, sb);
+        sb.append(SUFFIXES[idx]);
+        return sb.toString();
     }
 
     public static String format(double num) {
-        if (num < 1000.0) return DF2.format(num);
-        int idx = 0;
-        double d = num;
-        while (d >= 1000.0 && idx < SUFFIXES.length - 1) { d /= 1000.0; idx++; }
-        return DF.format(d) + SUFFIXES[idx];
+        StringBuilder sb = new StringBuilder(16);
+        format(num, sb);
+        return sb.toString();
     }
 
     public static String format(double num, StringBuilder sb) {
-        if (sb == null) return format(num);
-        sb.setLength(0);
-        if (num < 1000.0) return sb.append(DF2.format(num)).toString();
+        if (sb == null) sb = new StringBuilder(16);
+        else sb.setLength(0);
+
+        if (num < 1000.0) {
+            append2Dec(num, sb);
+            return sb.toString();
+        }
+
         int idx = 0;
         double d = num;
-        while (d >= 1000.0 && idx < SUFFIXES.length - 1) { d /= 1000.0; idx++; }
-        return sb.append(DF.format(d)).append(SUFFIXES[idx]).toString();
+        while (d >= 1000.0 && idx < SUFFIXES.length - 1) {
+            d /= 1000.0;
+            idx++;
+        }
+        append1Dec(d, sb);
+        sb.append(SUFFIXES[idx]);
+        return sb.toString();
     }
 
     public static String formatInt(long num) {
-        return DF_INT.format(num);
+        StringBuilder sb = new StringBuilder(16);
+        appendFormattedInt(num, sb);
+        return sb.toString();
     }
 
     public static String formatPercent(float f) {
