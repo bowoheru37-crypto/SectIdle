@@ -61,16 +61,23 @@ public final class MathUtils {
         }
     }
 
+    /**
+     * Fast sine lookup.
+     * Optimized: Replaced floating-point modulo (%) and conditional branching with a bitwise AND mask
+     * (SIN_TABLE_SIZE - 1) on 2's complement integers. SIN_TABLE_SIZE is 1024 (2^10), so (int)(rad * SIN_TABLE_SCALE) & 1023
+     * correctly handles positive/negative angles and angle wrapping in 1 CPU cycle without floating-point division/modulo.
+     */
     public static float sin(float rad) {
-        int idx = (int)((rad * SIN_TABLE_SCALE) % SIN_TABLE_SIZE);
-        if (idx < 0) idx += SIN_TABLE_SIZE;
-        return SIN_TABLE[idx];
+        return SIN_TABLE[(int)(rad * SIN_TABLE_SCALE) & (SIN_TABLE_SIZE - 1)];
     }
 
+    /**
+     * Fast cosine lookup.
+     * Optimized: Replaced floating-point modulo (%) and conditional branching with a bitwise AND mask
+     * (SIN_TABLE_SIZE - 1) on 2's complement integers.
+     */
     public static float cos(float rad) {
-        int idx = (int)((rad * SIN_TABLE_SCALE) % SIN_TABLE_SIZE);
-        if (idx < 0) idx += SIN_TABLE_SIZE;
-        return COS_TABLE[idx];
+        return COS_TABLE[(int)(rad * SIN_TABLE_SCALE) & (SIN_TABLE_SIZE - 1)];
     }
 
     public static float fastSqrt(float v) {
