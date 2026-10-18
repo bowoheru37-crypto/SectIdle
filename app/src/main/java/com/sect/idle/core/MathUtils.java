@@ -7,6 +7,7 @@ public final class MathUtils {
     private MathUtils() {}
 
     private static final int SIN_TABLE_SIZE = 1024;
+    private static final int SIN_MASK = SIN_TABLE_SIZE - 1;
     private static final float SIN_TABLE_SCALE = SIN_TABLE_SIZE / (2f * 3.14159265f);
     private static final float[] SIN_TABLE = new float[SIN_TABLE_SIZE + 1];
     private static final float[] COS_TABLE = new float[SIN_TABLE_SIZE + 1];
@@ -61,16 +62,20 @@ public final class MathUtils {
         }
     }
 
+    /**
+     * Fast sine lookup using pre-computed table and bitwise AND masking.
+     * Replaces modulo % operation with single-cycle bitwise mask to prevent CPU pipeline stalls on low-end ARM CPUs.
+     */
     public static float sin(float rad) {
-        int idx = (int)((rad * SIN_TABLE_SCALE) % SIN_TABLE_SIZE);
-        if (idx < 0) idx += SIN_TABLE_SIZE;
-        return SIN_TABLE[idx];
+        return SIN_TABLE[(int)(rad * SIN_TABLE_SCALE) & SIN_MASK];
     }
 
+    /**
+     * Fast cosine lookup using pre-computed table and bitwise AND masking.
+     * Replaces modulo % operation with single-cycle bitwise mask to prevent CPU pipeline stalls on low-end ARM CPUs.
+     */
     public static float cos(float rad) {
-        int idx = (int)((rad * SIN_TABLE_SCALE) % SIN_TABLE_SIZE);
-        if (idx < 0) idx += SIN_TABLE_SIZE;
-        return COS_TABLE[idx];
+        return COS_TABLE[(int)(rad * SIN_TABLE_SCALE) & SIN_MASK];
     }
 
     public static float fastSqrt(float v) {
