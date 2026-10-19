@@ -1,55 +1,172 @@
 package com.sect.idle.systems;
 
-import java.text.DecimalFormat;
-
+/**
+ * NumberFormatter - High performance string formatting utility for numeric values.
+ * Optimized to eliminate DecimalFormat synchronization lock contention and GC object allocations.
+ */
 public final class NumberFormatter {
     private static final String[] SUFFIXES = {"","K","M","B","T","Qa","Qi","Sx","Sp","Oc","No","Dc"};
-    private static final DecimalFormat DF = new DecimalFormat("0.0");
-    private static final DecimalFormat DF2 = new DecimalFormat("0.00");
-    private static final DecimalFormat DF_INT = new DecimalFormat("#,###");
 
     private NumberFormatter() {}
 
+    /**
+     * Formats a double with 1 decimal place (0.0) without DecimalFormat overhead.
+     */
+    private static String formatOneDecimal(double val) {
+        if (Double.isNaN(val) || Double.isInfinite(val)) return String.valueOf(val);
+        boolean negative = val < 0;
+        double absVal = Math.abs(val);
+        long scaled = Math.round(absVal * 10.0);
+        long integral = scaled / 10;
+        long fractional = scaled % 10;
+        return (negative ? "-" : "") + integral + "." + fractional;
+    }
+
+    /**
+     * Appends a double formatted with 1 decimal place (0.0) directly into a StringBuilder.
+     */
+    private static void appendOneDecimal(StringBuilder sb, double val) {
+        if (Double.isNaN(val) || Double.isInfinite(val)) {
+            sb.append(val);
+            return;
+        }
+        if (val < 0) sb.append('-');
+        double absVal = Math.abs(val);
+        long scaled = Math.round(absVal * 10.0);
+        long integral = scaled / 10;
+        long fractional = scaled % 10;
+        sb.append(integral).append('.').append(fractional);
+    }
+
+    /**
+     * Formats a double with 2 decimal places (0.00) without DecimalFormat overhead.
+     */
+    private static String formatTwoDecimals(double val) {
+        if (Double.isNaN(val) || Double.isInfinite(val)) return String.valueOf(val);
+        boolean negative = val < 0;
+        double absVal = Math.abs(val);
+        long scaled = Math.round(absVal * 100.0);
+        long integral = scaled / 100;
+        long fractional = scaled % 100;
+        if (fractional < 10) {
+            return (negative ? "-" : "") + integral + ".0" + fractional;
+        } else {
+            return (negative ? "-" : "") + integral + "." + fractional;
+        }
+    }
+
+    /**
+     * Appends a double formatted with 2 decimal places (0.00) directly into a StringBuilder.
+     */
+    private static void appendTwoDecimals(StringBuilder sb, double val) {
+        if (Double.isNaN(val) || Double.isInfinite(val)) {
+            sb.append(val);
+            return;
+        }
+        if (val < 0) sb.append('-');
+        double absVal = Math.abs(val);
+        long scaled = Math.round(absVal * 100.0);
+        long integral = scaled / 100;
+        long fractional = scaled % 100;
+        sb.append(integral).append('.');
+        if (fractional < 10) sb.append('0');
+        sb.append(fractional);
+    }
+
+    /**
+     * Formats a long with thousands separators without DecimalFormat overhead.
+     */
+    private static String formatWithCommas(long num) {
+        if (num == 0) return "0";
+        boolean negative = num < 0;
+        long absNum = Math.abs(num);
+        String s = String.valueOf(absNum);
+        int len = s.length();
+        StringBuilder sb = new StringBuilder(len + len / 3 + (negative ? 1 : 0));
+        if (negative) sb.append('-');
+        int firstGroup = len % 3;
+        if (firstGroup == 0) firstGroup = 3;
+        sb.append(s, 0, firstGroup);
+        for (int i = firstGroup; i < len; i += 3) {
+            sb.append(',').append(s, i, i + 3);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Appends a long with thousands separators directly into a StringBuilder.
+     */
+    private static void appendWithCommas(StringBuilder sb, long num) {
+        if (num == 0) {
+            sb.append('0');
+            return;
+        }
+        boolean negative = num < 0;
+        long absNum = Math.abs(num);
+        String s = String.valueOf(absNum);
+        int len = s.length();
+        if (negative) sb.append('-');
+        int firstGroup = len % 3;
+        if (firstGroup == 0) firstGroup = 3;
+        sb.append(s, 0, firstGroup);
+        for (int i = firstGroup; i < len; i += 3) {
+            sb.append(',').append(s, i, i + 3);
+        }
+    }
+
     public static String format(long num) {
-        if (num < 1000L) return String.valueOf(num);
-        if (num < 1000000L) return DF_INT.format(num);
+        if (num > -1000L && num < 1000L) return String.valueOf(num);
+        if (num > -1000000L && num < 1000000L) return formatWithCommas(num);
         int idx = 0;
         double d = num;
-        while (d >= 1000.0 && idx < SUFFIXES.length - 1) { d /= 1000.0; idx++; }
-        return DF.format(d) + SUFFIXES[idx];
+        while (Math.abs(d) >= 1000.0 && idx < SUFFIXES.length - 1) { d /= 1000.0; idx++; }
+        return formatOneDecimal(d) + SUFFIXES[idx];
     }
 
     public static String format(long num, StringBuilder sb) {
         if (sb == null) return format(num);
         sb.setLength(0);
-        if (num < 1000L) return sb.append(num).toString();
-        if (num < 1000000L) return sb.append(DF_INT.format(num)).toString();
+        if (num > -1000L && num < 1000L) {
+            sb.append(num);
+            return sb.toString();
+        }
+        if (num > -1000000L && num < 1000000L) {
+            appendWithCommas(sb, num);
+            return sb.toString();
+        }
         int idx = 0;
         double d = num;
-        while (d >= 1000.0 && idx < SUFFIXES.length - 1) { d /= 1000.0; idx++; }
-        return sb.append(DF.format(d)).append(SUFFIXES[idx]).toString();
+        while (Math.abs(d) >= 1000.0 && idx < SUFFIXES.length - 1) { d /= 1000.0; idx++; }
+        appendOneDecimal(sb, d);
+        sb.append(SUFFIXES[idx]);
+        return sb.toString();
     }
 
     public static String format(double num) {
-        if (num < 1000.0) return DF2.format(num);
+        if (Math.abs(num) < 1000.0) return formatTwoDecimals(num);
         int idx = 0;
         double d = num;
-        while (d >= 1000.0 && idx < SUFFIXES.length - 1) { d /= 1000.0; idx++; }
-        return DF.format(d) + SUFFIXES[idx];
+        while (Math.abs(d) >= 1000.0 && idx < SUFFIXES.length - 1) { d /= 1000.0; idx++; }
+        return formatOneDecimal(d) + SUFFIXES[idx];
     }
 
     public static String format(double num, StringBuilder sb) {
         if (sb == null) return format(num);
         sb.setLength(0);
-        if (num < 1000.0) return sb.append(DF2.format(num)).toString();
+        if (Math.abs(num) < 1000.0) {
+            appendTwoDecimals(sb, num);
+            return sb.toString();
+        }
         int idx = 0;
         double d = num;
-        while (d >= 1000.0 && idx < SUFFIXES.length - 1) { d /= 1000.0; idx++; }
-        return sb.append(DF.format(d)).append(SUFFIXES[idx]).toString();
+        while (Math.abs(d) >= 1000.0 && idx < SUFFIXES.length - 1) { d /= 1000.0; idx++; }
+        appendOneDecimal(sb, d);
+        sb.append(SUFFIXES[idx]);
+        return sb.toString();
     }
 
     public static String formatInt(long num) {
-        return DF_INT.format(num);
+        return formatWithCommas(num);
     }
 
     public static String formatPercent(float f) {
