@@ -7,6 +7,8 @@ public final class NumberFormatter {
     private static final DecimalFormat DF = new DecimalFormat("0.0");
     private static final DecimalFormat DF2 = new DecimalFormat("0.00");
     private static final DecimalFormat DF_INT = new DecimalFormat("#,###");
+    private static final int[] ROMAN_VALUES = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
+    private static final String[] ROMAN_SYMBOLS = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"};
 
     private NumberFormatter() {}
 
@@ -73,10 +75,8 @@ public final class NumberFormatter {
     public static String formatRoman(int num) {
         if (num <= 0) return "";
         StringBuilder sb = new StringBuilder(16);
-        int[] values = {1000,900,500,400,100,90,50,40,10,9,5,4,1};
-        String[] symbols = {"M","CM","D","CD","C","XC","L","XL","X","IX","V","IV","I"};
-        for (int i = 0; i < values.length; i++) {
-            while (num >= values[i]) { sb.append(symbols[i]); num -= values[i]; }
+        for (int i = 0; i < ROMAN_VALUES.length; i++) {
+            while (num >= ROMAN_VALUES[i]) { sb.append(ROMAN_SYMBOLS[i]); num -= ROMAN_VALUES[i]; }
         }
         return sb.toString();
     }

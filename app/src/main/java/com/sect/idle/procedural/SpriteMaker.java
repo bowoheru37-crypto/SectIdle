@@ -319,7 +319,9 @@ public final class SpriteMaker {
                 P.setColor(MathUtils.setAlpha(0xFFFFFFFF, 0.6f));
                 P.setStyle(Paint.Style.STROKE);
                 P.setStrokeWidth(1.2f);
-                c.drawArc(new RectF(s - s * 0.35f, s - s * 0.35f, s + s * 0.35f, s + s * 0.35f), 30, 140, false, P);
+                // Optimized: Reuse static RectF R to avoid allocation
+                R.set(s - s * 0.35f, s - s * 0.35f, s + s * 0.35f, s + s * 0.35f);
+                c.drawArc(R, 30, 140, false, P);
                 P.setStyle(Paint.Style.FILL);
                 break;
 
