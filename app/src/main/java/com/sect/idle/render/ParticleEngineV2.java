@@ -4,6 +4,7 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
+import com.sect.idle.core.MathUtils;
 import com.sect.idle.systems.CameraSystem;
 import com.sect.idle.systems.RNG;
 
@@ -86,7 +87,7 @@ public final class ParticleEngineV2 {
             if (!pActive[i]) { idx = i; break; }
         }
         initParticle(idx, x, y, vx, vy, life, size, color, type);
-        if (idx == activeCount) activeCount++;
+        if (idx >= activeCount) activeCount = idx + 1;
         return idx;
     }
 
@@ -141,7 +142,8 @@ public final class ParticleEngineV2 {
     }
 
     public void update(float dt) {
-        for (int i = 0; i < MAX_PARTICLES; i++) {
+        // Optimized: Loop only up to activeCount instead of MAX_PARTICLES (512)
+        for (int i = 0; i < activeCount; i++) {
             if (!pActive[i]) continue;
             pLife[i] -= dt;
             if (pLife[i] <= 0) {
@@ -176,7 +178,8 @@ public final class ParticleEngineV2 {
                     pvy[i] *= 0.94f;
                     break;
                 case TYPE_QI_PETAL:
-                    pvx[i] = (float) (Math.sin(pLife[i] * 3.0f + i) * 15.0f) + windX;
+                    // Optimized: Use fast lookup table MathUtils.sin instead of standard Math.sin
+                    pvx[i] = MathUtils.sin(pLife[i] * 3.0f + i) * 15.0f + windX;
                     pvy[i] = 18.0f + windY * 0.5f;
                     break;
                 case TYPE_SWORD_AURA:
@@ -202,7 +205,8 @@ public final class ParticleEngineV2 {
 
     public void render(Canvas canvas, CameraSystem cam) {
         if (canvas == null) return;
-        for (int i = 0; i < MAX_PARTICLES; i++) {
+        // Optimized: Loop only up to activeCount instead of MAX_PARTICLES (512)
+        for (int i = 0; i < activeCount; i++) {
             if (!pActive[i]) continue;
 
             float sx, sy, ss;
@@ -259,7 +263,8 @@ public final class ParticleEngineV2 {
     }
 
     public void clear() {
-        for (int i = 0; i < MAX_PARTICLES; i++) {
+        // Optimized: Loop only up to activeCount
+        for (int i = 0; i < activeCount; i++) {
             pActive[i] = false;
         }
         activeCount = 0;
