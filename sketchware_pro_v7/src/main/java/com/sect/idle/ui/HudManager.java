@@ -84,28 +84,31 @@ public final class HudManager {
         sb1.setLength(0);
         sb1.append(data.sectName != null ? data.sectName : "Immortal Sect");
         sb1.append(" [").append(GameConfig.getRealmName(data.sectRealm)).append("]");
-        canvas.drawText(sb1.toString(), 24f, 32f, textPaint);
+        canvas.drawText(sb1, 0, sb1.length(), 24f, 32f, textPaint);
 
         // Resource Pills
         textPaint.setTextSize(11f);
 
         // Spirit Stones
         sb1.setLength(0);
-        sb1.append("💎 ").append(NumberFormatter.format(data.spiritStones, sb2));
+        sb1.append("💎 ");
+        NumberFormatter.format(data.spiritStones, sb1);
         textPaint.setColor(0xFFFFD700);
-        canvas.drawText(sb1.toString(), 24f, 52f, textPaint);
+        canvas.drawText(sb1, 0, sb1.length(), 24f, 52f, textPaint);
 
         // Jade
         sb1.setLength(0);
-        sb1.append("🟢 ").append(NumberFormatter.format(data.jade, sb2));
+        sb1.append("🟢 ");
+        NumberFormatter.format(data.jade, sb1);
         textPaint.setColor(0xFF00E5FF);
-        canvas.drawText(sb1.toString(), 160f, 52f, textPaint);
+        canvas.drawText(sb1, 0, sb1.length(), 160f, 52f, textPaint);
 
         // Essence
         sb1.setLength(0);
-        sb1.append("⚡ ").append(NumberFormatter.format(data.essence, sb2));
+        sb1.append("⚡ ");
+        NumberFormatter.format(data.essence, sb1);
         textPaint.setColor(0xFFEA80FC);
-        canvas.drawText(sb1.toString(), 280f, 52f, textPaint);
+        canvas.drawText(sb1, 0, sb1.length(), 280f, 52f, textPaint);
     }
 
     private void renderCircularMinimap(Canvas canvas, SectData data, Camera3D camera, int W) {
@@ -129,8 +132,9 @@ public final class HudManager {
         textPaint.setTextSize(9f);
         textPaint.setColor(0xFF00E5FF);
         textPaint.setTextAlign(Paint.Align.CENTER);
-        String season = data.time != null ? data.time.getDisplay() : "Spring";
-        canvas.drawText("🌸 " + season, cx, cy + radius - 4, textPaint);
+        sb1.setLength(0);
+        sb1.append("🌸 ").append(data.time != null ? data.time.getDisplay() : "Spring");
+        canvas.drawText(sb1, 0, sb1.length(), cx, cy + radius - 4, textPaint);
 
         // Center player/sect dot
         minimapDotPaint.setColor(0xFFFFD700);
@@ -213,7 +217,6 @@ public final class HudManager {
         float panelH = 180f;
         float panelX = 16f - (1f - animProgress) * panelW;
         float panelY = H - 240f;
-        int alpha = (int) (240 * animProgress);
 
         bgPaint.setColor(0xF0120A24);
         r1.set(panelX, panelY, panelX + panelW, panelY + panelH);
@@ -225,14 +228,27 @@ public final class HudManager {
         textPaint.setTextSize(14f);
         textPaint.setColor(0xFFFFD700);
         textPaint.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText("👤 " + (d.name != null ? d.name : "Disciple"), panelX + 16f, panelY + 28f, textPaint);
+        sb1.setLength(0);
+        sb1.append("👤 ").append(d.name != null ? d.name : "Disciple");
+        canvas.drawText(sb1, 0, sb1.length(), panelX + 16f, panelY + 28f, textPaint);
 
         textPaint.setTextSize(11f);
         textPaint.setColor(0xFFFFFFFF);
-        canvas.drawText("Realm: " + GameConfig.getRealmName(d.realm), panelX + 16f, panelY + 52f, textPaint);
-        canvas.drawText("Element: " + GameConfig.getElementName(d.element), panelX + 16f, panelY + 70f, textPaint);
-        canvas.drawText("HP: " + d.hp + " / " + d.maxHp, panelX + 16f, panelY + 88f, textPaint);
-        canvas.drawText("Current Task: " + GameConfig.getTaskName(d.currentTask), panelX + 16f, panelY + 106f, textPaint);
+        sb1.setLength(0);
+        sb1.append("Realm: ").append(GameConfig.getRealmName(d.realm));
+        canvas.drawText(sb1, 0, sb1.length(), panelX + 16f, panelY + 52f, textPaint);
+
+        sb1.setLength(0);
+        sb1.append("Element: ").append(GameConfig.getElementName(d.element));
+        canvas.drawText(sb1, 0, sb1.length(), panelX + 16f, panelY + 70f, textPaint);
+
+        sb1.setLength(0);
+        sb1.append("HP: ").append(d.hp).append(" / ").append(d.maxHp);
+        canvas.drawText(sb1, 0, sb1.length(), panelX + 16f, panelY + 88f, textPaint);
+
+        sb1.setLength(0);
+        sb1.append("Current Task: ").append(GameConfig.getTaskName(d.currentTask));
+        canvas.drawText(sb1, 0, sb1.length(), panelX + 16f, panelY + 106f, textPaint);
     }
 
     public void renderBuildingDrawer(Canvas canvas, Building b, int W, int H) {
@@ -254,11 +270,18 @@ public final class HudManager {
         textPaint.setTextSize(14f);
         textPaint.setColor(0xFF00E5FF);
         textPaint.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText("🏛️ " + (b.name != null ? b.name : "Building"), panelX + 16f, panelY + 28f, textPaint);
+        sb1.setLength(0);
+        sb1.append("🏛️ ").append(b.name != null ? b.name : "Building");
+        canvas.drawText(sb1, 0, sb1.length(), panelX + 16f, panelY + 28f, textPaint);
 
         textPaint.setTextSize(11f);
         textPaint.setColor(0xFFFFFFFF);
-        canvas.drawText("Level: " + b.level, panelX + 16f, panelY + 52f, textPaint);
-        canvas.drawText("Status: " + (b.isBuilt ? "Active" : "Unbuilt"), panelX + 16f, panelY + 70f, textPaint);
+        sb1.setLength(0);
+        sb1.append("Level: ").append(b.level);
+        canvas.drawText(sb1, 0, sb1.length(), panelX + 16f, panelY + 52f, textPaint);
+
+        sb1.setLength(0);
+        sb1.append("Status: ").append(b.isBuilt ? "Active" : "Unbuilt");
+        canvas.drawText(sb1, 0, sb1.length(), panelX + 16f, panelY + 70f, textPaint);
     }
 }
