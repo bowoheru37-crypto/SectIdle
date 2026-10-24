@@ -18,11 +18,14 @@ public final class BattleEngine {
 
     private final ArrayList<BattleUnit> units;
     private final ArrayList<String> log;
+    // Pre-allocated candidate list to prevent per-turn ArrayList allocations in hot tick loops
+    private final ArrayList<BattleUnit> targetCandidates;
     private static final int MAX_LOG_SIZE = 50;
 
     public BattleEngine() {
         this.units = new ArrayList<BattleUnit>();
         this.log = new ArrayList<String>();
+        this.targetCandidates = new ArrayList<BattleUnit>();
     }
 
     public void startBattle(ArrayList<Disciple> playerTeam, ArrayList<Disciple> enemyTeam) {
@@ -159,15 +162,16 @@ public final class BattleEngine {
     }
 
     private BattleUnit findTarget(int team) {
-        ArrayList<BattleUnit> candidates = new ArrayList<BattleUnit>();
+        // Zero-GC target selection using pre-allocated buffer
+        targetCandidates.clear();
         for (int i = 0; i < units.size(); i++) {
             BattleUnit u = units.get(i);
             if (u != null && u.isAlive && u.team == team) {
-                candidates.add(u);
+                targetCandidates.add(u);
             }
         }
-        if (candidates.isEmpty()) return null;
-        return candidates.get(RNG.nextInt(candidates.size()));
+        if (targetCandidates.isEmpty()) return null;
+        return targetCandidates.get(RNG.nextInt(targetCandidates.size()));
     }
 
     private void checkBattleEnd() {
