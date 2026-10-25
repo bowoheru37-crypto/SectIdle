@@ -30,6 +30,10 @@ public final class IsometricWorld {
     private final RectF dstRect;
 
     private final int[] tileColors;
+    // Bolt: Precomputed lookup tables for side wall colors to eliminate ~12,000 darkenColor calls per frame
+    private final int[] leftFaceColors;
+    private final int[] rightFaceColors;
+
     private float weatherTimer = 0f;
     private int currentWeatherType = 0; // 0=Clear, 1=Rain, 2=Spirit Mist, 3=Lotus Petals
 
@@ -53,6 +57,8 @@ public final class IsometricWorld {
         this.dstRect = new RectF();
 
         this.tileColors = new int[256];
+        this.leftFaceColors = new int[256];
+        this.rightFaceColors = new int[256];
         initTileColors();
     }
 
@@ -65,6 +71,13 @@ public final class IsometricWorld {
         tileColors[ChunkManager.TILE_JADE_FLOOR]   = 0xFF00B0FF;
         tileColors[ChunkManager.TILE_MOUNTAIN]     = 0xFF424242;
         tileColors[ChunkManager.TILE_ANCIENT_RUIN] = 0xFF7E57C2;
+
+        // Bolt optimization: Precompute left (0.75f) and right (0.60f) shading colors
+        // to avoid expensive per-block darkenColor() float multiplications during frame rendering.
+        for (int i = 0; i < tileColors.length; i++) {
+            leftFaceColors[i] = darkenColor(tileColors[i], 0.75f);
+            rightFaceColors[i] = darkenColor(tileColors[i], 0.60f);
+        }
     }
 
     public ChunkManager getChunkManager() {
@@ -162,10 +175,13 @@ public final class IsometricWorld {
             return;
         }
 
-        int baseColor = tileColors[tileType % tileColors.length];
-        int topColor = baseColor;
-        int leftColor = darkenColor(baseColor, 0.75f);
-        int rightColor = darkenColor(baseColor, 0.60f);
+        int tileIdx = tileType % tileColors.length;
+        if (tileIdx < 0) tileIdx += tileColors.length;
+
+        int topColor = tileColors[tileIdx];
+        // Bolt: Use precomputed side face colors instead of calculating darkenColor() on hot render path
+        int leftColor = leftFaceColors[tileIdx];
+        int rightColor = rightFaceColors[tileIdx];
 
         topFacePaint.setColor(topColor);
 
