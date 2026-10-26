@@ -23,6 +23,7 @@ public final class ParallaxEngine {
     private final Path path;
     private final RectF rect;
     private float animTimer = 0f;
+    private int lastScreenH = -1;
 
     public ParallaxEngine() {
         this.skyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -46,7 +47,11 @@ public final class ParallaxEngine {
         float camY = (camera != null) ? camera.pos.y : 0f;
 
         // Layer 0: Sky Gradient & Dao Starfield
-        skyPaint.setShader(new LinearGradient(0, 0, 0, screenH, 0xFF0F0A1A, 0xFF231038, Shader.TileMode.CLAMP));
+        // Cache sky gradient shader; re-create only when screen height changes to eliminate per-frame GC allocations
+        if (lastScreenH != screenH) {
+            skyPaint.setShader(new LinearGradient(0, 0, 0, screenH, 0xFF0F0A1A, 0xFF231038, Shader.TileMode.CLAMP));
+            lastScreenH = screenH;
+        }
         canvas.drawRect(0, 0, screenW, screenH, skyPaint);
 
         starPaint.setColor(0xCCFFFFFF);
