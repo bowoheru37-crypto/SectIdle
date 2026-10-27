@@ -50,8 +50,11 @@ public final class MenuScene {
     private int lastSizeW = -1, lastSizeH = -1;
 
     private final RectF[] buttonRects;
-    private final String[] buttons = {"Continue", "New Game", "Settings", "Exit"};
+    private final String[] buttons = {"▶  Continue", "✨  New Path", "⚙  Settings", "🚪  Exit"};
     private final int[] buttonStates = {0, 0, 0, 0};
+    private final RectF cardRect;
+    private final Paint cardBgPaint;
+    private final Paint cardBorderPaint;
 
     private static final int PARTICLE_COUNT = 40;
     private static final int MAX_PARTICLES = 60;
@@ -120,6 +123,14 @@ public final class MenuScene {
         subTitlePaint.setTextSize(24f);
         subTitlePaint.setTextAlign(Paint.Align.CENTER);
 
+        cardBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        cardBgPaint.setColor(0xCC0D081A);
+
+        cardBorderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        cardBorderPaint.setStyle(Paint.Style.STROKE);
+        cardBorderPaint.setStrokeWidth(1.5f);
+        cardBorderPaint.setColor(0x40FFD700);
+
         btnPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         btnPaint.setColor(BTN_COLOR);
         btnPaint.setStyle(Paint.Style.FILL);
@@ -175,6 +186,7 @@ public final class MenuScene {
         for (int i = 0; i < PARTICLE_COUNT; i++) resetParticle(i, true);
 
         tempRect = new RectF();
+        cardRect = new RectF();
         srcRect = new Rect();
         dstRect = new RectF();
     }
@@ -320,18 +332,27 @@ public final class MenuScene {
 
     private void renderButtons(Canvas canvas, int w, int h) {
         int alpha = titlePaint.getAlpha();
+
+        // Draw central glassmorphic card container for buttons
+        float cardW = Math.min(w * 0.88f, 360f);
+        float cardH = buttons.length * BTN_SPACING + 30f;
+        cardRect.set(centerX - cardW * 0.5f, btnY - 20f, centerX + cardW * 0.5f, btnY + cardH - 20f);
+
+        canvas.drawRoundRect(cardRect, 20f, 20f, cardBgPaint);
+        canvas.drawRoundRect(cardRect, 20f, 20f, cardBorderPaint);
+
         for (int i = 0; i < buttons.length; i++) {
             float by = btnY + i * BTN_SPACING;
             float stateFactor = buttonStates[i] / 10f;
-            float currentW = BTN_W + stateFactor * 20f;
-            float currentH = BTN_H + stateFactor * 8f;
+            float currentW = (cardW - 40f) + stateFactor * 15f;
+            float currentH = BTN_H + stateFactor * 6f;
 
             buttonRects[i].set(centerX - currentW * 0.5f, by, centerX + currentW * 0.5f, by + currentH);
 
             if (stateFactor > 0f) {
                 btnGlowPaint.setAlpha((int) (40 * stateFactor));
                 tempRect.set(buttonRects[i]);
-                tempRect.inset(-8f * stateFactor, -4f * stateFactor);
+                tempRect.inset(-6f * stateFactor, -3f * stateFactor);
                 canvas.drawRoundRect(tempRect, 18f, 18f, btnGlowPaint);
             }
 
@@ -342,6 +363,10 @@ public final class MenuScene {
                 btnBorderPaint.setStrokeWidth(2f + stateFactor);
                 canvas.drawRoundRect(buttonRects[i], 16f, 16f, btnBorderPaint);
                 btnBorderPaint.setStrokeWidth(2f);
+            } else {
+                btnBorderPaint.setAlpha(80);
+                btnBorderPaint.setStrokeWidth(1.2f);
+                canvas.drawRoundRect(buttonRects[i], 16f, 16f, btnBorderPaint);
             }
 
             textShadowPaint.setAlpha((int) (100 * alpha / 255));
@@ -350,12 +375,12 @@ public final class MenuScene {
 
             if (i == 0 && !hasSave) {
                 textPaint.setAlpha((int) (100 * alpha / 255));
-                canvas.drawText("[Locked]", centerX + 80f, by + currentH * 0.5f + 8f, textPaint);
+                canvas.drawText("🔒", buttonRects[i].right - 30f, by + currentH * 0.5f + 8f, textPaint);
                 textPaint.setAlpha(alpha);
             }
         }
         versionPaint.setAlpha(alpha);
-        canvas.drawText("v6.0 - Pro Edition", w - 24f, h - 24f, versionPaint);
+        canvas.drawText("v6.0 - Pro Edition (itel A70 Optimized)", w - 24f, h - 24f, versionPaint);
     }
 
     private static float easeOutCubic(float t) {
