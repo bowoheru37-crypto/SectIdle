@@ -23,6 +23,7 @@ public final class ParallaxEngine {
     private final Path path;
     private final RectF rect;
     private float animTimer = 0f;
+    private int cachedScreenH = -1;
 
     public ParallaxEngine() {
         this.skyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -46,7 +47,11 @@ public final class ParallaxEngine {
         float camY = (camera != null) ? camera.pos.y : 0f;
 
         // Layer 0: Sky Gradient & Dao Starfield
-        skyPaint.setShader(new LinearGradient(0, 0, 0, screenH, 0xFF0F0A1A, 0xFF231038, Shader.TileMode.CLAMP));
+        // Cache LinearGradient shader to prevent heap allocation every frame (60 FPS GC optimization)
+        if (screenH != cachedScreenH) {
+            skyPaint.setShader(new LinearGradient(0, 0, 0, screenH, 0xFF0F0A1A, 0xFF231038, Shader.TileMode.CLAMP));
+            cachedScreenH = screenH;
+        }
         canvas.drawRect(0, 0, screenW, screenH, skyPaint);
 
         starPaint.setColor(0xCCFFFFFF);
