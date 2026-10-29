@@ -30,6 +30,12 @@ public final class IsometricWorld {
     private final RectF dstRect;
 
     private final int[] tileColors;
+    private final int[] leftTileColors;
+    private final int[] rightTileColors;
+
+    // Pre-allocated chunk grid buffer to prevent Map lookups and GC allocations in render loops
+    private ChunkManager.Chunk[][] cachedChunkGrid;
+
     private float weatherTimer = 0f;
     private int currentWeatherType = 0; // 0=Clear, 1=Rain, 2=Spirit Mist, 3=Lotus Petals
 
@@ -53,6 +59,8 @@ public final class IsometricWorld {
         this.dstRect = new RectF();
 
         this.tileColors = new int[256];
+        this.leftTileColors = new int[256];
+        this.rightTileColors = new int[256];
         initTileColors();
     }
 
@@ -65,6 +73,12 @@ public final class IsometricWorld {
         tileColors[ChunkManager.TILE_JADE_FLOOR]   = 0xFF00B0FF;
         tileColors[ChunkManager.TILE_MOUNTAIN]     = 0xFF424242;
         tileColors[ChunkManager.TILE_ANCIENT_RUIN] = 0xFF7E57C2;
+
+        // Pre-compute shaded color lookup tables for left (0.75x) and right (0.60x) faces
+        for (int i = 0; i < tileColors.length; i++) {
+            leftTileColors[i] = darkenColor(tileColors[i], 0.75f);
+            rightTileColors[i] = darkenColor(tileColors[i], 0.60f);
+        }
     }
 
     public ChunkManager getChunkManager() {
@@ -111,8 +125,8 @@ public final class IsometricWorld {
 
         float tileW = camera3D.tileW;
         float tileH = camera3D.tileH;
-        float halfTW = tileW * 0.5f;
-        float halfTH = tileH * 0.5f;
+        float halfTW = tileW * 0.5f * zoom;
+        float halfTH = tileH * 0.5f * zoom;
 
         // Compute visible chunk bounds around camera target
         int centerChunkX = (int) (camWorldX / ChunkManager.CHUNK_SIZE);
@@ -124,17 +138,36 @@ public final class IsometricWorld {
         int minCY = centerChunkY - renderRadius;
         int maxCY = centerChunkY + renderRadius;
 
+        int numChunksX = maxCX - minCX + 1;
+        int numChunksY = maxCY - minCY + 1;
+
+        // Ensure pre-allocated chunk grid buffer is large enough
+        if (cachedChunkGrid == null || cachedChunkGrid.length < numChunksX || cachedChunkGrid[0].length < numChunksY) {
+            int gridW = Math.max(16, numChunksX);
+            int gridH = Math.max(16, numChunksY);
+            cachedChunkGrid = new ChunkManager.Chunk[gridW][gridH];
+        }
+
+        // Pre-fetch visible chunks once per frame into array grid to eliminate ~4000 Map queries per frame
+        for (int cx = minCX; cx <= maxCX; cx++) {
+            int gridX = cx - minCX;
+            for (int cy = minCY; cy <= maxCY; cy++) {
+                cachedChunkGrid[gridX][cy - minCY] = chunkManager.getOrGenerateChunk(cx, cy);
+            }
+        }
+
         // Render sorted 3D isometric tile blocks (diagonal sum ordering for correct depth sorting)
         for (int sum = (minCX + minCY) * ChunkManager.CHUNK_SIZE; sum <= (maxCX + maxCY) * ChunkManager.CHUNK_SIZE + ChunkManager.CHUNK_SIZE * 2; sum++) {
             for (int cx = minCX; cx <= maxCX; cx++) {
+                int gridX = cx - minCX;
                 for (int cy = minCY; cy <= maxCY; cy++) {
-                    ChunkManager.Chunk chunk = chunkManager.getOrGenerateChunk(cx, cy);
+                    ChunkManager.Chunk chunk = cachedChunkGrid[gridX][cy - minCY];
 
                     for (int tx = 0; tx < ChunkManager.CHUNK_SIZE; tx++) {
                         int ty = sum - (cx * ChunkManager.CHUNK_SIZE + tx) - (cy * ChunkManager.CHUNK_SIZE);
                         if (ty < 0 || ty >= ChunkManager.CHUNK_SIZE) continue;
 
-                        renderIsometricBlock(canvas, chunk, tx, ty, screenW, screenH);
+                        renderIsometricBlock(canvas, chunk, tx, ty, halfTW, halfTH, screenW, screenH);
                     }
                 }
             }
@@ -143,7 +176,7 @@ public final class IsometricWorld {
         renderWeatherOverlay(canvas, screenW, screenH);
     }
 
-    private void renderIsometricBlock(Canvas canvas, ChunkManager.Chunk chunk, int tx, int ty, int screenW, int screenH) {
+    private void renderIsometricBlock(Canvas canvas, ChunkManager.Chunk chunk, int tx, int ty, float halfTW, float halfTH, int screenW, int screenH) {
         int tileType = chunk.tiles[tx][ty];
         if (tileType == ChunkManager.TILE_VOID) return;
 
@@ -154,18 +187,15 @@ public final class IsometricWorld {
         float sx = camera3D.worldToScreenX(worldTileX, worldTileY);
         float sy = camera3D.worldToScreenY(worldTileX, worldTileY, heightZ);
 
-        float halfTW = camera3D.tileW * 0.5f * camera3D.zoom;
-        float halfTH = camera3D.tileH * 0.5f * camera3D.zoom;
-
         // Offscreen culling
         if (sx + halfTW < 0 || sx - halfTW > screenW || sy + halfTH < -200 || sy - halfTH > screenH + 200) {
             return;
         }
 
-        int baseColor = tileColors[tileType % tileColors.length];
-        int topColor = baseColor;
-        int leftColor = darkenColor(baseColor, 0.75f);
-        int rightColor = darkenColor(baseColor, 0.60f);
+        int typeIdx = tileType % tileColors.length;
+        int topColor = tileColors[typeIdx];
+        int leftColor = leftTileColors[typeIdx];
+        int rightColor = rightTileColors[typeIdx];
 
         topFacePaint.setColor(topColor);
 
