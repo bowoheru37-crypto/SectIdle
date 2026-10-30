@@ -431,19 +431,13 @@ public final class MenuScene {
                             public void onConfirm(boolean confirmed) {
                                 if (confirmed) {
                                     activity.initNewGame();
-                                    activity.sceneManager.setState(GameState.SECT);
-                                    try {
-                                        com.sect.idle.systems.AudioManager.getInstance(context).playBgm(com.sect.idle.systems.AudioManager.THEME_SECT_PEACE);
-                                    } catch (Exception ignored) {}
+                                    activity.sceneManager.setState(GameState.CHAR_CREATION);
                                 }
                             }
                         });
                 } else {
                     activity.initNewGame();
-                    activity.sceneManager.setState(GameState.SECT);
-                    try {
-                        com.sect.idle.systems.AudioManager.getInstance(context).playBgm(com.sect.idle.systems.AudioManager.THEME_SECT_PEACE);
-                    } catch (Exception ignored) {}
+                    activity.sceneManager.setState(GameState.CHAR_CREATION);
                 }
                 break;
             case 2:
