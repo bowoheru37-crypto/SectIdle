@@ -6,6 +6,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Shader;
+import com.sect.idle.core.MathUtils;
 import com.sect.idle.systems.CameraSystem;
 
 /**
@@ -23,6 +24,10 @@ public final class ParallaxEngine {
     private final Path path;
     private final RectF rect;
     private float animTimer = 0f;
+
+    // Performance Optimization: Cache LinearGradient shader and screen height to eliminate per-frame GC allocations
+    private LinearGradient skyShader;
+    private int cachedScreenH = -1;
 
     public ParallaxEngine() {
         this.skyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -46,14 +51,20 @@ public final class ParallaxEngine {
         float camY = (camera != null) ? camera.pos.y : 0f;
 
         // Layer 0: Sky Gradient & Dao Starfield
-        skyPaint.setShader(new LinearGradient(0, 0, 0, screenH, 0xFF0F0A1A, 0xFF231038, Shader.TileMode.CLAMP));
+        // Optimization: Instantiate LinearGradient only when screen height changes to avoid 60 FPS GC churn.
+        if (screenH != cachedScreenH || skyShader == null) {
+            cachedScreenH = screenH;
+            skyShader = new LinearGradient(0, 0, 0, screenH, 0xFF0F0A1A, 0xFF231038, Shader.TileMode.CLAMP);
+            skyPaint.setShader(skyShader);
+        }
         canvas.drawRect(0, 0, screenW, screenH, skyPaint);
 
         starPaint.setColor(0xCCFFFFFF);
         for (int i = 0; i < 30; i++) {
             float sx = (i * 97 + camX * 0.02f) % screenW;
             float sy = (i * 53 + camY * 0.02f) % (screenH * 0.6f);
-            float alpha = (float) Math.abs(Math.sin(animTimer * 2f + i)) * 200f + 55f;
+            // Optimization: Use MathUtils.sin lookup table instead of standard Math.sin inside loop
+            float alpha = Math.abs(MathUtils.sin(animTimer * 2f + i)) * 200f + 55f;
             starPaint.setAlpha((int) alpha);
             canvas.drawCircle(sx, sy, 1.5f, starPaint);
         }
@@ -66,7 +77,8 @@ public final class ParallaxEngine {
         path.reset();
         path.moveTo(0, screenH);
         for (int x = 0; x <= screenW; x += 40) {
-            float py = screenH * 0.45f + (float) Math.sin((x + mOffX) * 0.008f) * 60f + mOffY * 0.1f;
+            // Optimization: Fast trig lookup table
+            float py = screenH * 0.45f + MathUtils.sin((x + mOffX) * 0.008f) * 60f + mOffY * 0.1f;
             path.lineTo(x, py);
         }
         path.lineTo(screenW, screenH);
@@ -78,7 +90,8 @@ public final class ParallaxEngine {
         for (int i = 0; i < 3; i++) {
             float ix = (i * 320f - mOffX * 2.2f) % (screenW + 300f);
             if (ix < -150f) ix += screenW + 300f;
-            float iy = screenH * 0.30f + i * 80f + (float) Math.sin(animTimer + i) * 12f - mOffY * 0.2f;
+            // Optimization: Fast trig lookup table
+            float iy = screenH * 0.30f + i * 80f + MathUtils.sin(animTimer + i) * 12f - mOffY * 0.2f;
 
             rect.set(ix - 80f, iy - 20f, ix + 80f, iy + 20f);
             canvas.drawOval(rect, islandPaint);
