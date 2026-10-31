@@ -12,6 +12,8 @@ import android.graphics.Shader;
 import android.graphics.Typeface;
 import com.sect.idle.gameplay.BattleEngine;
 import com.sect.idle.models.BattleUnit;
+import android.graphics.Path;
+import com.sect.idle.systems.AudioManager;
 import com.sect.idle.systems.CameraSystem;
 import com.sect.idle.systems.RNG;
 import java.util.ArrayList;
@@ -98,6 +100,31 @@ public final class BattleScene {
     private final int[] ftColor;
     private int activeFloating = 0;
 
+
+    // Combat Simulation Controls
+    private float simulationSpeed = 1.0f;
+    private boolean autoBattle = true;
+    private boolean isPaused = false;
+    private final RectF btnAutoRect = new RectF();
+    private final RectF btnSpeedRect = new RectF();
+    private final RectF btnPauseRect = new RectF();
+    private final Paint buttonBgPaint;
+    private final Paint buttonTextPaint;
+    private final StringBuilder stringBuilder = new StringBuilder(32);
+
+    // Sword Slash Ribbon & Spark System
+    private static final int MAX_SLASH_POINTS = 32;
+    private final float[] slashX = new float[MAX_SLASH_POINTS];
+    private final float[] slashY = new float[MAX_SLASH_POINTS];
+    private final float[] slashLife = new float[MAX_SLASH_POINTS];
+    private final float[] slashWidth = new float[MAX_SLASH_POINTS];
+    private int slashHead = 0;
+    private int slashCount = 0;
+    private final Path slashPathOuter = new Path();
+    private final Path slashPathCore = new Path();
+    private final Paint slashGlowPaint;
+    private final Paint slashCorePaint;
+    private final Paint slashSparkPaint;
     // Spirit Aura Buffer Renderer
     private final com.sect.idle.render.SpiritAuraBufferRenderer auraRenderer;
     private final java.util.HashMap<String, Bitmap> unitSpriteCache = new java.util.HashMap<String, Bitmap>();
@@ -210,6 +237,30 @@ public final class BattleScene {
         ftX = new float[MAX_FLOATING]; ftY = new float[MAX_FLOATING];
         ftLife = new float[MAX_FLOATING]; ftMaxLife = new float[MAX_FLOATING];
         ftColor = new int[MAX_FLOATING];
+
+        buttonBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        buttonBgPaint.setColor(0xFF263238);
+
+        buttonTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        buttonTextPaint.setColor(0xFFFFFFFF);
+        buttonTextPaint.setTextSize(12f);
+        buttonTextPaint.setTypeface(Typeface.DEFAULT_BOLD);
+        buttonTextPaint.setTextAlign(Paint.Align.CENTER);
+
+        slashGlowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        slashGlowPaint.setStyle(Paint.Style.STROKE);
+        slashGlowPaint.setStrokeCap(Paint.Cap.ROUND);
+        slashGlowPaint.setStrokeJoin(Paint.Join.ROUND);
+
+        slashCorePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        slashCorePaint.setStyle(Paint.Style.STROKE);
+        slashCorePaint.setStrokeCap(Paint.Cap.ROUND);
+        slashCorePaint.setStrokeJoin(Paint.Join.ROUND);
+        slashCorePaint.setColor(0xFFFFFFFF);
+
+        slashSparkPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        slashSparkPaint.setStyle(Paint.Style.FILL);
+
     }
 
     public void setAtlas(Bitmap atlas, Bitmap battleSheet, Bitmap effectSheet) {
@@ -221,18 +272,65 @@ public final class BattleScene {
     public void setBattle(BattleEngine b) { this.battle = b; }
 
     public void update(float dt) {
+        if (isPaused) return;
+
+        float simDt = dt * simulationSpeed;
         if (battle != null && battle.isRunning) {
-            battle.tick();
+            if (autoBattle) {
+                int steps = Math.max(1, (int) simulationSpeed);
+                for (int s = 0; s < steps; s++) {
+                    battle.tick();
+                    if (!battle.isRunning) break;
+                }
+            }
         }
-        animTime += dt;
+        animTime += simDt;
+
+        if (slashCount > 0) {
+            for (int i = 0; i < slashCount; i++) {
+                int idx = (slashHead - slashCount + i + MAX_SLASH_POINTS) % MAX_SLASH_POINTS;
+                slashLife[idx] -= dt * 3.5f;
+            }
+            while (slashCount > 0) {
+                int tailIdx = (slashHead - slashCount + MAX_SLASH_POINTS) % MAX_SLASH_POINTS;
+                if (slashLife[tailIdx] <= 0f) {
+                    slashCount--;
+                } else {
+                    break;
+                }
+            }
+        }
 
         shakeIntensity *= shakeDecay;
         if (shakeIntensity < 0.1f) shakeIntensity = 0f;
         flashIntensity *= 0.9f;
         if (flashIntensity < 0.01f) flashIntensity = 0f;
 
-        updateParticles(dt);
-        updateFloatingTexts(dt);
+        updateParticles(simDt);
+        updateFloatingTexts(simDt);
+    }
+
+    public void addSlashPoint(float x, float y) {
+        int idx = slashHead;
+        slashX[idx] = x;
+        slashY[idx] = y;
+        slashLife[idx] = 1.0f;
+        slashWidth[idx] = 12f;
+        slashHead = (slashHead + 1) % MAX_SLASH_POINTS;
+        if (slashCount < MAX_SLASH_POINTS) slashCount++;
+
+        spawnHitSparks(x, y, 0xFF00E5FF);
+        try {
+            AudioManager.getInstance(context).playSfx(AudioManager.SFX_SWORD_SPAR);
+        } catch (Throwable ignored) {}
+    }
+
+    public void spawnHitSparks(float x, float y, int color) {
+        spawnHitEffect(x, y, color);
+    }
+
+    public void spawnFloatingDamage(float x, float y, int amount, boolean isCrit) {
+        spawnDamageText(x, y, isCrit ? ("CRIT -" + amount) : ("-" + amount), isCrit ? 0xFFFFD700 : 0xFFFF5252);
     }
 
     private void updateParticles(float dt) {
@@ -339,8 +437,10 @@ public final class BattleScene {
 
         renderBattleInfo(canvas, w, h);
         renderLog(canvas, w, h);
+        renderSwordSlashes(canvas);
         renderParticles(canvas);
         renderFloatingTexts(canvas);
+        renderControlButtons(canvas, w, h);
 
         if (flashIntensity > 0) {
             flashPaint.setColor(flashColor);
@@ -553,7 +653,84 @@ public final class BattleScene {
         damagePaint.setAlpha(255);
     }
 
+
+    private void renderSwordSlashes(Canvas canvas) {
+        if (slashCount < 2) return;
+
+        slashPathOuter.rewind();
+        slashPathCore.rewind();
+
+        int startIdx = (slashHead - slashCount + MAX_SLASH_POINTS) % MAX_SLASH_POINTS;
+        slashPathOuter.moveTo(slashX[startIdx], slashY[startIdx]);
+        slashPathCore.moveTo(slashX[startIdx], slashY[startIdx]);
+
+        for (int i = 1; i < slashCount; i++) {
+            int prev = (slashHead - slashCount + i - 1 + MAX_SLASH_POINTS) % MAX_SLASH_POINTS;
+            int curr = (slashHead - slashCount + i + MAX_SLASH_POINTS) % MAX_SLASH_POINTS;
+
+            float midX = (slashX[prev] + slashX[curr]) * 0.5f;
+            float midY = (slashY[prev] + slashY[curr]) * 0.5f;
+
+            slashPathOuter.quadTo(slashX[prev], slashY[prev], midX, midY);
+            slashPathCore.quadTo(slashX[prev], slashY[prev], midX, midY);
+        }
+
+        slashGlowPaint.setColor(0xFF00E5FF);
+        slashGlowPaint.setStrokeWidth(14f);
+        slashGlowPaint.setAlpha(180);
+        canvas.drawPath(slashPathOuter, slashGlowPaint);
+
+        slashCorePaint.setStrokeWidth(4f);
+        slashCorePaint.setAlpha(255);
+        canvas.drawPath(slashPathCore, slashCorePaint);
+    }
+
+    private void renderControlButtons(Canvas canvas, int w, int h) {
+        float btnW = 90f;
+        float btnH = 34f;
+        float margin = 12f;
+        float startY = h - btnH - margin;
+
+        btnAutoRect.set(w - (btnW * 3f + margin * 3f), startY, w - (btnW * 2f + margin * 3f), startY + btnH);
+        btnSpeedRect.set(w - (btnW * 2f + margin * 2f), startY, w - (btnW + margin * 2f), startY + btnH);
+        btnPauseRect.set(w - (btnW + margin), startY, w - margin, startY + btnH);
+
+        buttonBgPaint.setColor(autoBattle ? 0xFF2E7D32 : 0xFF455A64);
+        canvas.drawRoundRect(btnAutoRect, 6f, 6f, buttonBgPaint);
+        canvas.drawText(autoBattle ? "AUTO: ON" : "AUTO: OFF", btnAutoRect.centerX(), btnAutoRect.centerY() + 5f, buttonTextPaint);
+
+        buttonBgPaint.setColor(0xFF1565C0);
+        canvas.drawRoundRect(btnSpeedRect, 6f, 6f, buttonBgPaint);
+        stringBuilder.setLength(0);
+        stringBuilder.append((int) simulationSpeed).append("X SPEED");
+        canvas.drawText(stringBuilder.toString(), btnSpeedRect.centerX(), btnSpeedRect.centerY() + 5f, buttonTextPaint);
+
+        buttonBgPaint.setColor(isPaused ? 0xFFC62828 : 0xFF37474F);
+        canvas.drawRoundRect(btnPauseRect, 6f, 6f, buttonBgPaint);
+        canvas.drawText(isPaused ? "PLAY" : "PAUSE", btnPauseRect.centerX(), btnPauseRect.centerY() + 5f, buttonTextPaint);
+    }
+
     public void onTouchDown(float x, float y) {
+        if (btnAutoRect.contains(x, y)) {
+            autoBattle = !autoBattle;
+            try { AudioManager.getInstance(context).playSfx(AudioManager.SFX_CLICK); } catch (Throwable ignored) {}
+            return;
+        }
+        if (btnSpeedRect.contains(x, y)) {
+            if (simulationSpeed == 1.0f) simulationSpeed = 2.0f;
+            else if (simulationSpeed == 2.0f) simulationSpeed = 4.0f;
+            else simulationSpeed = 1.0f;
+            try { AudioManager.getInstance(context).playSfx(AudioManager.SFX_CLICK); } catch (Throwable ignored) {}
+            return;
+        }
+        if (btnPauseRect.contains(x, y)) {
+            isPaused = !isPaused;
+            try { AudioManager.getInstance(context).playSfx(AudioManager.SFX_CLICK); } catch (Throwable ignored) {}
+            return;
+        }
+
+        addSlashPoint(x, y);
+
         if (battle == null) return;
 
         if (!battle.isRunning) {
@@ -589,6 +766,22 @@ public final class BattleScene {
     }
 
     public void onTouchUp(float x, float y) {}
+
+
+    public void destroy() {
+        for (Bitmap b : unitSpriteCache.values()) {
+            if (b != null && !b.isRecycled()) {
+                b.recycle();
+            }
+        }
+        unitSpriteCache.clear();
+        if (auraRenderer != null) {
+            auraRenderer.releaseBuffer();
+        }
+        slashCount = 0;
+        activeParticles = 0;
+        activeFloating = 0;
+    }
 
     public void reset() {
         selectedUnit = -1;

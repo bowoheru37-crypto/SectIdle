@@ -55,12 +55,12 @@ public class Item {
     }
 
     public Item(@NonNull String id, @NonNull String name, int type, int rarity, int maxStack, int value) {
-        this.id = id;
-        this.count = 1;
-        this.durability = -1;
         if (!TEMPLATE_CACHE.containsKey(id)) {
             register(new ItemTemplate(id, name, "", type, rarity, maxStack, value, 0, 0, true, "icon_default"));
         }
+        this.id = id;
+        this.count = 1;
+        this.durability = (type == TYPE_EQUIPMENT) ? 100 : -1;
     }
 
     // ========== GETTERS ==========

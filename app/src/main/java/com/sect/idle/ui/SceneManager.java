@@ -333,4 +333,14 @@ public final class SceneManager {
     public LoadingScene getLoadingScene() { return loadingScene; }
     public boolean isTransitioning() { return transitioning; }
     public float getRenderTime() { return renderTime; }
+
+    public void destroy() {
+        if (sectScene != null) {
+            sectScene.destroy();
+        }
+        if (battleScene != null) {
+            battleScene.destroy();
+        }
+    }
+
 }

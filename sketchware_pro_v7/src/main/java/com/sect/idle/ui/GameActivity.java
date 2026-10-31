@@ -568,8 +568,8 @@ public class GameActivity extends Activity {
         if (saveManager != null) { try { saveManager.shutdown(); } catch (Exception e) { e.printStackTrace(); } }
         if (gameView != null) { gameView.shutdown(); }
         if (dialogManager != null) { dialogManager.dismissAll(); }
-        if (sceneManager != null && sceneManager.getSectScene() != null) {
-            sceneManager.getSectScene().destroy();
+        if (sceneManager != null) {
+            sceneManager.destroy();
         }
         com.sect.idle.utils.ExceptionManager.get().shutdown();
     }

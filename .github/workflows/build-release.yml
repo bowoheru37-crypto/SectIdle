@@ -53,6 +53,7 @@ jobs:
       - name: Copy Release APK to Export
         run: |
           cp app/build/outputs/apk/release/app-release.apk export/NUSA_MOBILE.apk || true
+          cp app/build/outputs/apk/release/*.apk export/SECT_IDLE_ITEL_A70_RELEASE.apk || true
 
       - name: Upload Build Artifacts (Mobile, Web, Desktop, Consoles)
         uses: actions/upload-artifact@v4

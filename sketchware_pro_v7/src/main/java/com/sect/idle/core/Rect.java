@@ -4,7 +4,7 @@ public final class Rect {
     public float x, y, w, h;
 
     public Rect(float x, float y, float w, float h) { set(x, y, w, h); }
-    public Rect() { set(0f, 0f, 0f, 0f); }
+    public Rect() { this(0f, 0f, 0f, 0f); }
 
     public final void set(float x, float y, float w, float h) {
         this.x = Float.isNaN(x) ? 0f : x;
