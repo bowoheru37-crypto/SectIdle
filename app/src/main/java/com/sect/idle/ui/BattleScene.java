@@ -415,14 +415,17 @@ public final class BattleScene {
 
         float barY = y + UNIT_H + 18f;
 
+        // Rounded HP Bar
         rectPool.set(x, barY, x + UNIT_W, barY + HP_H);
-        canvas.drawRect(rectPool, hpBgPaint);
+        canvas.drawRoundRect(rectPool, 4f, 4f, hpBgPaint);
 
         float hpPercent = u.maxHp > 0 ? Math.max(0f, Math.min(1f, u.hp / (float)u.maxHp)) : 0f;
         float barW = UNIT_W * hpPercent;
-        hpPaint.setColor(hpPercent < 0.3f ? HP_LOW_COLOR : HP_COLOR);
-        rectPool.set(x, barY, x + barW, barY + HP_H);
-        canvas.drawRect(rectPool, hpPaint);
+        if (barW > 0) {
+            hpPaint.setColor(hpPercent < 0.3f ? HP_LOW_COLOR : HP_COLOR);
+            rectPool.set(x, barY, x + barW, barY + HP_H);
+            canvas.drawRoundRect(rectPool, 4f, 4f, hpPaint);
+        }
 
         textPaint.setTextSize(9f);
         textPaint.setColor(0xFFFFFFFF);
@@ -430,21 +433,27 @@ public final class BattleScene {
 
         barY += HP_H + BAR_GAP;
 
+        // Rounded MP Bar
         rectPool.set(x, barY, x + UNIT_W, barY + MP_H);
-        canvas.drawRect(rectPool, mpBgPaint);
+        canvas.drawRoundRect(rectPool, 2f, 2f, mpBgPaint);
 
         float mpPercent = u.maxMp > 0 ? Math.max(0f, Math.min(1f, u.mp / (float)u.maxMp)) : 0f;
         float mpBarW = UNIT_W * mpPercent;
-        rectPool.set(x, barY, x + mpBarW, barY + MP_H);
-        canvas.drawRect(rectPool, mpPaint);
+        if (mpBarW > 0) {
+            rectPool.set(x, barY, x + mpBarW, barY + MP_H);
+            canvas.drawRoundRect(rectPool, 2f, 2f, mpPaint);
+        }
 
         barY += MP_H + BAR_GAP;
 
+        // Rounded Action Gauge Bar
         float actionPercent = u.maxActionBar > 0 ? Math.max(0f, Math.min(1f, u.actionBar / (float)u.maxActionBar)) : 0f;
         float actionW = UNIT_W * actionPercent;
         actionPaint.setColor(ACTION_COLOR);
-        rectPool.set(x, barY, x + actionW, barY + ACTION_H);
-        canvas.drawRect(rectPool, actionPaint);
+        if (actionW > 0) {
+            rectPool.set(x, barY, x + actionW, barY + ACTION_H);
+            canvas.drawRoundRect(rectPool, 2f, 2f, actionPaint);
+        }
 
         if (actionPercent >= 1f) {
             glowPaint.setColor(ACTION_COLOR);
