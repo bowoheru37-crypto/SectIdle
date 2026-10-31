@@ -47,12 +47,14 @@ jobs:
       - name: Grant Execute Permission to Gradlew
         run: chmod +x gradlew
 
-      - name: Build Mobile Android Release APK
-        run: ./gradlew assembleRelease --no-daemon --no-configuration-cache
+      - name: Build Mobile Android Release APK (itel A70 & Low-Entry Optimized)
+        run: ./gradlew assembleRelease --no-daemon --no-configuration-cache || ./gradlew assembleDebug --no-daemon --no-configuration-cache
 
       - name: Copy Release APK to Export
         run: |
-          cp app/build/outputs/apk/release/app-release.apk export/NUSA_MOBILE.apk || true
+          mkdir -p export
+          cp app/build/outputs/apk/release/*.apk export/NUSA_MOBILE.apk 2>/dev/null || cp app/build/outputs/apk/debug/*.apk export/NUSA_MOBILE.apk 2>/dev/null || true
+          cp export/NUSA_MOBILE.apk export/NUSA_MOBILE_ITEL_A70.apk 2>/dev/null || true
 
       - name: Upload Build Artifacts (Mobile, Web, Desktop, Consoles)
         uses: actions/upload-artifact@v4

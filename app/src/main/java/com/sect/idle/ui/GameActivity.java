@@ -146,32 +146,15 @@ public class GameActivity extends Activity {
 
                     @Override
                     public void onRecruitRequested() {
-                        final Disciple candidate = generateRandomDisciple();
-                        if (dialogManager != null) {
-                            dialogManager.showRecruit(candidate, new DialogManager.RecruitCallback() {
-                                @Override
-                                public void onAccept() {
-                                    if (data != null) {
-                                        data.disciples.add(candidate);
-                                        data.recalculateEconomy();
-                                        LogManager.get(GameActivity.this).success("Recruited " + candidate.name);
-                                    }
-                                }
-                                @Override
-                                public void onReject() {}
-                            });
+                        if (sceneManager != null) {
+                            sceneManager.setState(GameState.CULTIVATION);
                         }
                     }
 
                     @Override
                     public void onMarketRequested() {
-                        if (dialogManager != null && market != null && data != null) {
-                            dialogManager.showMarket(market, data, new DialogManager.MarketCallback() {
-                                @Override
-                                public void onItemPurchased(int itemIndex, int price) {
-                                    if (data != null) data.recalculateEconomy();
-                                }
-                            });
+                        if (sceneManager != null) {
+                            sceneManager.setState(GameState.MARKETPLACE);
                         }
                     }
 

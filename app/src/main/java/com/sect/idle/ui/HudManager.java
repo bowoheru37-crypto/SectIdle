@@ -32,12 +32,13 @@ public final class HudManager {
     private final StringBuilder sb1;
     private final StringBuilder sb2;
 
-    public static final int ACTION_WAR        = 1;
-    public static final int ACTION_ARENA      = 2;
-    public static final int ACTION_BATTLE     = 3;
-    public static final int ACTION_RECRUIT    = 4;
-    public static final int ACTION_MARKET     = 5;
-    public static final int ACTION_MENU       = 6;
+    public static final int ACTION_WAR         = 1;
+    public static final int ACTION_ARENA       = 2;
+    public static final int ACTION_BATTLE      = 3;
+    public static final int ACTION_RECRUIT     = 4;
+    public static final int ACTION_CULTIVATION = 4;
+    public static final int ACTION_MARKET      = 5;
+    public static final int ACTION_MENU        = 6;
 
     public HudManager() {
         this.bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -155,7 +156,7 @@ public final class HudManager {
         renderPillButton(canvas, 20f, barY + 6f, buttonW - 4f, 38f, "⚔️ War", 0xFFFF5252);
         renderPillButton(canvas, 20f + buttonW, barY + 6f, buttonW - 4f, 38f, "🏆 Arena", 0xFFFFD700);
         renderPillButton(canvas, 20f + buttonW * 2, barY + 6f, buttonW - 4f, 38f, "💥 Battle", 0xFFE53935);
-        renderPillButton(canvas, 20f + buttonW * 3, barY + 6f, buttonW - 4f, 38f, "👥 Recruit", 0xFF43A047);
+        renderPillButton(canvas, 20f + buttonW * 3, barY + 6f, buttonW - 4f, 38f, "🧘 Meditate", 0xFF43A047);
         renderPillButton(canvas, 20f + buttonW * 4, barY + 6f, buttonW - 4f, 38f, "🏛️ Market", 0xFF1E88E5);
         renderPillButton(canvas, 20f + buttonW * 5, barY + 6f, buttonW - 4f, 38f, "⚙️ Menu", 0xFF8E24AA);
     }
@@ -187,7 +188,7 @@ public final class HudManager {
                 case 0: return ACTION_WAR;
                 case 1: return ACTION_ARENA;
                 case 2: return ACTION_BATTLE;
-                case 3: return ACTION_RECRUIT;
+                case 3: return ACTION_CULTIVATION;
                 case 4: return ACTION_MARKET;
                 case 5: return ACTION_MENU;
             }

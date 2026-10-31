@@ -206,6 +206,31 @@ public final class SceneManager {
                     if (layers[i] != null) menuScene.render(layers[i], paint, cam);
                 }
                 break;
+            case CHAR_CREATION:
+                for (int i = 0; i < GameView.LAYER_COUNT; i++) {
+                    if (layers[i] != null && charCreationScene != null) charCreationScene.render(layers[i], paint, cam);
+                }
+                break;
+            case CULTIVATION:
+                for (int i = 0; i < GameView.LAYER_COUNT; i++) {
+                    if (layers[i] != null && cultivationScene != null) cultivationScene.render(layers[i], paint, cam);
+                }
+                break;
+            case TRIBULATION:
+                for (int i = 0; i < GameView.LAYER_COUNT; i++) {
+                    if (layers[i] != null && tribulationScene != null) tribulationScene.render(layers[i], paint, cam);
+                }
+                break;
+            case ASCENSION:
+                for (int i = 0; i < GameView.LAYER_COUNT; i++) {
+                    if (layers[i] != null && ascensionScene != null) ascensionScene.render(layers[i], paint, cam);
+                }
+                break;
+            case MARKETPLACE:
+                for (int i = 0; i < GameView.LAYER_COUNT; i++) {
+                    if (layers[i] != null && marketplaceScene != null) marketplaceScene.render(layers[i], paint, cam);
+                }
+                break;
             case SECT:
                 if (sectScene != null) sectScene.renderLayered(layers, paint, cam, w, h);
                 break;
