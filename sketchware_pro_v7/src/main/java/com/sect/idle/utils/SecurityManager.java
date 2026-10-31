@@ -55,13 +55,19 @@ public final class SecurityManager {
     }
 
     public String computeMD5(String data) {
+        if (data == null) data = "";
         try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(data.getBytes());
-            StringBuilder sb = new StringBuilder(32);
-            for (byte b : digest) sb.append(String.format("%02x", b));
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(data.getBytes("UTF-8"));
+            StringBuilder sb = new StringBuilder(64);
+            char[] hexDigits = "0123456789abcdef".toCharArray();
+            for (int i = 0; i < digest.length; i++) {
+                int b = digest[i] & 0xFF;
+                sb.append(hexDigits[b >>> 4]);
+                sb.append(hexDigits[b & 0x0F]);
+            }
             return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
+        } catch (Exception e) {
             return computeHash(data);
         }
     }

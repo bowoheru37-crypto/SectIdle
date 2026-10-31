@@ -61,6 +61,7 @@ public final class Disciple {
     // ====== TASK ======
     public int currentTask;
     public int taskEfficiency;
+    public float efficiency = 1.0f;
     public int taskProgress;
     public int taskTarget;
     public int taskLevel;
@@ -215,8 +216,6 @@ public final class Disciple {
         this.reputation = 0;
         this.relationshipSect = 50;
     }
-
-    public float efficiency = 1.0f;
 
     public Disciple(String name) {
         this();

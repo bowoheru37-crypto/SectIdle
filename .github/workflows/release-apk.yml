@@ -1,0 +1,68 @@
+name: Build & Optimize Release APK (itel A70 / Android Smartphones)
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-release-apk:
+    name: Build Fully Customized & Optimized Release APK
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Create Release/Debug Keystore Fallback
+        run: |
+          if [ ! -f debug.keystore ]; then
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=SectIdle,C=ID"
+          fi
+
+      - name: Grant Execute Permission to Gradlew
+        run: chmod +x gradlew
+
+      - name: Run Test Verification Suite
+        run: ./gradlew test --no-daemon
+
+      - name: Build Optimized Android Release APK
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Prepare Export Directory
+        run: |
+          mkdir -p export
+          cp app/build/outputs/apk/release/*.apk export/SECT_IDLE_ITEL_A70_RELEASE.apk 2>/dev/null || true
+
+      - name: Upload Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sect-idle-itel-a70-release-apk
+          path: export/SECT_IDLE_ITEL_A70_RELEASE.apk
+          if-no-files-found: warn
+
+      - name: Publish GitHub Release (On Tag Push)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            export/SECT_IDLE_ITEL_A70_RELEASE.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
