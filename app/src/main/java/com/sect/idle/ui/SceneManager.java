@@ -22,6 +22,12 @@ public final class SceneManager {
     private final SectScene sectScene;
     private final BattleScene battleScene;
     private final MenuScene menuScene;
+    private final LoadingScene loadingScene;
+    private final CharCreationScene charCreationScene;
+    private final CultivationScene cultivationScene;
+    private final TribulationScene tribulationScene;
+    private final AscensionScene ascensionScene;
+    private final MarketplaceScene marketplaceScene;
 
     // Transition system
     private final Paint transitionPaint;
@@ -58,6 +64,18 @@ public final class SceneManager {
         this.sectScene = new SectScene(ctx);
         this.battleScene = new BattleScene(ctx);
         this.menuScene = new MenuScene(ctx);
+        this.loadingScene = new LoadingScene(ctx);
+        this.charCreationScene = new CharCreationScene(ctx);
+        this.cultivationScene = new CultivationScene(ctx);
+        this.tribulationScene = new TribulationScene(ctx);
+        this.ascensionScene = new AscensionScene(ctx);
+        this.marketplaceScene = new MarketplaceScene(ctx);
+        this.loadingScene.setCompleteListener(new LoadingScene.LoadingCompleteListener() {
+            @Override
+            public void onLoadingComplete() {
+                setState(GameState.MENU);
+            }
+        });
         this.tempRect = new RectF();
     }
 
@@ -65,6 +83,7 @@ public final class SceneManager {
         if (menuScene != null) menuScene.setAtlas(atlas, parallax);
         if (sectScene != null) sectScene.setAtlas(atlas, tileset, parallax, walkSheet);
         if (battleScene != null) battleScene.setAtlas(atlas, battleSheet, effectSheet);
+        if (loadingScene != null) loadingScene.setAtlas(parallax);
     }
 
     public GameState getCurrentState() { return currentState; }
@@ -86,6 +105,7 @@ public final class SceneManager {
             for (int i = 0; i < stateStack.length; i++) stateStack[i] = null;
         }
 
+        if (state == GameState.LOADING && loadingScene != null) loadingScene.resetProgress();
         if (state == GameState.BATTLE && battleScene != null) battleScene.reset();
         if (state == GameState.SECT && sectScene != null) sectScene.resetSelection();
     }
@@ -124,9 +144,15 @@ public final class SceneManager {
         }
 
         switch (currentState) {
+            case LOADING: if (loadingScene != null) loadingScene.update(dt); break;
             case MENU: if (menuScene != null) menuScene.update(dt); break;
             case SECT: if (sectScene != null) sectScene.update(dt); break;
             case BATTLE: if (battleScene != null) battleScene.update(dt); break;
+            case CHAR_CREATION: if (charCreationScene != null) charCreationScene.update(dt); break;
+            case CULTIVATION: if (cultivationScene != null) cultivationScene.update(dt); break;
+            case TRIBULATION: if (tribulationScene != null) tribulationScene.update(dt); break;
+            case ASCENSION: if (ascensionScene != null) ascensionScene.update(dt); break;
+            case MARKETPLACE: if (marketplaceScene != null) marketplaceScene.update(dt); break;
             default: break;
         }
     }
@@ -140,9 +166,15 @@ public final class SceneManager {
         long start = System.nanoTime();
 
         switch (currentState) {
+            case LOADING: if (loadingScene != null) loadingScene.render(canvas, paint, cam); break;
             case MENU: if (menuScene != null) menuScene.render(canvas, paint, cam); break;
             case SECT: if (sectScene != null) sectScene.render(canvas, paint, cam); break;
             case BATTLE: if (battleScene != null) battleScene.render(canvas, paint, cam); break;
+            case CHAR_CREATION: if (charCreationScene != null) charCreationScene.render(canvas, paint, cam); break;
+            case CULTIVATION: if (cultivationScene != null) cultivationScene.render(canvas, paint, cam); break;
+            case TRIBULATION: if (tribulationScene != null) tribulationScene.render(canvas, paint, cam); break;
+            case ASCENSION: if (ascensionScene != null) ascensionScene.render(canvas, paint, cam); break;
+            case MARKETPLACE: if (marketplaceScene != null) marketplaceScene.render(canvas, paint, cam); break;
             default:
                 paint.setColor(0xFF000000);
                 canvas.drawRect(0, 0, screenW, screenH, paint);
@@ -164,6 +196,11 @@ public final class SceneManager {
         if (screenW <= 0 || screenH <= 0) return;
 
         switch (currentState) {
+            case LOADING:
+                for (int i = 0; i < GameView.LAYER_COUNT; i++) {
+                    if (layers[i] != null && loadingScene != null) loadingScene.render(layers[i], paint, cam);
+                }
+                break;
             case MENU:
                 for (int i = 0; i < GameView.LAYER_COUNT; i++) {
                     if (layers[i] != null) menuScene.render(layers[i], paint, cam);
@@ -262,6 +299,11 @@ public final class SceneManager {
             case MENU: if (menuScene != null) menuScene.onTouchDown(x, y); break;
             case SECT: if (sectScene != null) sectScene.onTouchDown(x, y); break;
             case BATTLE: if (battleScene != null) battleScene.onTouchDown(x, y); break;
+            case CHAR_CREATION: if (charCreationScene != null) charCreationScene.onTouchDown(x, y); break;
+            case CULTIVATION: if (cultivationScene != null) cultivationScene.onTouchDown(x, y); break;
+            case TRIBULATION: if (tribulationScene != null) tribulationScene.onTouchDown(x, y); break;
+            case ASCENSION: if (ascensionScene != null) ascensionScene.onTouchDown(x, y); break;
+            case MARKETPLACE: if (marketplaceScene != null) marketplaceScene.onTouchDown(x, y); break;
             default: break;
         }
     }
@@ -288,6 +330,7 @@ public final class SceneManager {
     public BattleScene getBattleScene() { return battleScene; }
     public SectScene getSectScene() { return sectScene; }
     public MenuScene getMenuScene() { return menuScene; }
+    public LoadingScene getLoadingScene() { return loadingScene; }
     public boolean isTransitioning() { return transitioning; }
     public float getRenderTime() { return renderTime; }
 }

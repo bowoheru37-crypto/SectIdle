@@ -67,23 +67,24 @@ public final class HudManager {
     }
 
     private void renderTopResourceHeader(Canvas canvas, SectData data, int W) {
-        float headerH = 64f;
+        float headerH = 70f;
 
         // Glassmorphism translucent background
-        bgPaint.setColor(0xCC0D081A);
+        bgPaint.setColor(0xDD0D081A);
         r1.set(12f, 10f, W - 140f, headerH);
-        canvas.drawRoundRect(r1, 16f, 16f, bgPaint);
+        canvas.drawRoundRect(r1, 18f, 18f, bgPaint);
 
-        borderPaint.setColor(0x40FFD700);
-        canvas.drawRoundRect(r1, 16f, 16f, borderPaint);
+        borderPaint.setColor(0x60FFD700);
+        borderPaint.setStrokeWidth(1.5f);
+        canvas.drawRoundRect(r1, 18f, 18f, borderPaint);
 
         // Sect Name & Realm Tag
         textPaint.setTextSize(13f);
         textPaint.setColor(0xFFFFFFFF);
         textPaint.setTextAlign(Paint.Align.LEFT);
         sb1.setLength(0);
-        sb1.append(data.sectName != null ? data.sectName : "Immortal Sect");
-        sb1.append(" [").append(GameConfig.getRealmName(data.sectRealm)).append("]");
+        sb1.append("🏯 ").append(data.sectName != null ? data.sectName : "Immortal Sect");
+        sb1.append("  ").append(GameConfig.getRealmName(data.sectRealm));
         canvas.drawText(sb1.toString(), 24f, 32f, textPaint);
 
         // Resource Pills
@@ -93,19 +94,19 @@ public final class HudManager {
         sb1.setLength(0);
         sb1.append("💎 ").append(NumberFormatter.format(data.spiritStones, sb2));
         textPaint.setColor(0xFFFFD700);
-        canvas.drawText(sb1.toString(), 24f, 52f, textPaint);
+        canvas.drawText(sb1.toString(), 24f, 55f, textPaint);
 
         // Jade
         sb1.setLength(0);
         sb1.append("🟢 ").append(NumberFormatter.format(data.jade, sb2));
         textPaint.setColor(0xFF00E5FF);
-        canvas.drawText(sb1.toString(), 160f, 52f, textPaint);
+        canvas.drawText(sb1.toString(), 150f, 55f, textPaint);
 
         // Essence
         sb1.setLength(0);
         sb1.append("⚡ ").append(NumberFormatter.format(data.essence, sb2));
         textPaint.setColor(0xFFEA80FC);
-        canvas.drawText(sb1.toString(), 280f, 52f, textPaint);
+        canvas.drawText(sb1.toString(), 270f, 55f, textPaint);
     }
 
     private void renderCircularMinimap(Canvas canvas, SectData data, Camera3D camera, int W) {
