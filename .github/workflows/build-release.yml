@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+  schedule:
+    - cron: '0 3 * * 0' # Weekly Sunday schedule
   workflow_dispatch:
 
 jobs:
