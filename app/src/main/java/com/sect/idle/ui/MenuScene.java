@@ -50,8 +50,8 @@ public final class MenuScene {
     private int lastSizeW = -1, lastSizeH = -1;
 
     private final RectF[] buttonRects;
-    private final String[] buttons = {"▶  Continue", "✨  New Path", "⚙  Settings", "🚪  Exit"};
-    private final int[] buttonStates = {0, 0, 0, 0};
+    private final String[] buttons = {"▶  Continue", "✨  New Path", "🧙  Nizam Engine Studio", "⚙  Settings", "🚪  Exit"};
+    private final int[] buttonStates = {0, 0, 0, 0, 0};
     private final RectF cardRect;
     private final Paint cardBgPaint;
     private final Paint cardBorderPaint;
@@ -172,8 +172,8 @@ public final class MenuScene {
 
         vignettePaint = new Paint();
 
-        buttonRects = new RectF[4];
-        for (int i = 0; i < 4; i++) buttonRects[i] = new RectF();
+        buttonRects = new RectF[5];
+        for (int i = 0; i < 5; i++) buttonRects[i] = new RectF();
 
         pX = new float[MAX_PARTICLES];
         pY = new float[MAX_PARTICLES];
@@ -253,7 +253,7 @@ public final class MenuScene {
             if (pY[i] > screenH || pLife[i] <= 0) resetParticle(i, false);
         }
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < buttons.length; i++) {
             buttonStates[i] = (i == hoverIndex)
                 ? Math.min(10, buttonStates[i] + 1)
                 : Math.max(0, buttonStates[i] - 1);
@@ -441,6 +441,12 @@ public final class MenuScene {
                 }
                 break;
             case 2:
+                // Nizam Wizard Mode interactive engine studio
+                if (activity.sceneManager != null) {
+                    activity.sceneManager.setState(GameState.NIZAM_WIZARD);
+                }
+                break;
+            case 3:
                 if (activity.getDialogManager() != null) {
                     activity.getDialogManager().showSettingsDialog(new DialogManager.SettingsCallback() {
                         @Override
@@ -452,7 +458,7 @@ public final class MenuScene {
                     });
                 }
                 break;
-            case 3:
+            case 4:
                 if (activity.getDialogManager() != null) {
                     activity.getDialogManager().showConfirm("Exit Game", "Depart from the Immortal Realm?",
                         new DialogManager.ConfirmCallback() {
