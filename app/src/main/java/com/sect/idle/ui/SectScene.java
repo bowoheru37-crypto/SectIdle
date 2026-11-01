@@ -331,7 +331,15 @@ public final class SectScene {
         int idx = GameConfig.clamp(type, 0, buildingIconCache.length - 1);
         if (buildingIconCache[idx] == null) {
             try {
-                buildingIconCache[idx] = SpriteMaker.createBuilding(96, type, 0, type * 7919L);
+                if (type == 0) { // Main Sect Pavilion / Prambanan Candi
+                    buildingIconCache[idx] = com.sect.idle.procedural.IdleSectAssetGenerator.createPrambananBuilding(96, 96);
+                } else if (type == 1) { // Martial Arena Bambu
+                    buildingIconCache[idx] = com.sect.idle.procedural.IdleSectAssetGenerator.createMartialArena(96, 96);
+                } else if (type == 2) { // Spirit Mine Kristal
+                    buildingIconCache[idx] = com.sect.idle.procedural.IdleSectAssetGenerator.createSpiritMine(96, 96);
+                } else {
+                    buildingIconCache[idx] = SpriteMaker.createBuilding(96, type, 0, type * 7919L);
+                }
             } catch (OutOfMemoryError e) {
                 return null;
             }

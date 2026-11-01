@@ -145,6 +145,11 @@ public final class SceneManager {
             }
         }
 
+        // Update Mobile Thermal Governor for Itel A70
+        try {
+            com.sect.idle.utils.MobileThermalGovernor.getInstance(context).update();
+        } catch (Throwable ignored) {}
+
         switch (currentState) {
             case LOADING: if (loadingScene != null) loadingScene.update(dt); break;
             case MENU: if (menuScene != null) menuScene.update(dt); break;
