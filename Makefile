@@ -7,14 +7,18 @@ EXPORT_DIR = export
 
 $(shell mkdir -p $(EXPORT_DIR))
 
-.PHONY: all psx ps2 nds psp vita switch ps3 retroarch windows mac linux mobile ios web desktop clean
+.PHONY: all psx ps2 nds psp vita switch ps3 retroarch windows mac linux mobile ios web desktop nizam clean
 
-all: psx ps2 nds psp vita switch ps3 retroarch windows mac linux mobile ios web desktop
+all: psx ps2 nds psp vita switch ps3 retroarch windows mac linux mobile ios web desktop nizam
 	@echo "================================================="
 	@echo " CHIMERA v6.0 ALL-PLATFORM BUILD COMPLETE "
 	@echo " SUPPORTED: PSX, PS2, NDS, PSP, VITA, SWITCH, PS3 "
-	@echo " RETROARCH, WINDOWS, MAC, LINUX, ANDROID, IOS, WEB "
+	@echo " RETROARCH, WINDOWS, MAC, LINUX, ANDROID, IOS, WEB, NIZAM "
 	@echo "================================================="
+
+nizam:
+	@echo "[>] Compiling Nizam Engine Bundle (NIZAM_ENGINE_V120.zip)..."
+	@python3 -c "import zipfile, os; os.makedirs('$(EXPORT_DIR)', exist_ok=True); z=zipfile.ZipFile('$(EXPORT_DIR)/NIZAM_ENGINE_V120.zip', 'w'); z.write('NizamEngine/build.zig', 'build.zig'); z.write('NizamEngine/src/main.zig', 'src/main.zig'); z.write('NizamEngine/src/wizard.zig', 'src/wizard.zig'); z.write('NizamEngine/README.md', 'README.md'); z.close()"
 
 psx:
 	@echo "[>] Compiling PSX / PS1 Target (NUSA_PSX.BIN)..."

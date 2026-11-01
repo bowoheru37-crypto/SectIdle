@@ -43,6 +43,7 @@ SYSTEM_TARGETS = [
     {"system": "Android Mobile APK (Itel A70)", "file": "NUSA_MOBILE.apk", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 2.0},
     {"system": "iOS Mobile App Package", "file": "NUSA_IOS_PACKAGE.ipa", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 1.9},
     {"system": "HTML5 Web Game Browser Engine", "file": "NUSA_WEB_GAME.zip", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 0.5},
+    {"system": "Nizam Engine v1.2.0 Standalone Bundle", "file": "NIZAM_ENGINE_V120.zip", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 0.4},
 ]
 
 
