@@ -28,6 +28,7 @@ public final class SceneManager {
     private final TribulationScene tribulationScene;
     private final AscensionScene ascensionScene;
     private final MarketplaceScene marketplaceScene;
+    private final NizamWizardScene nizamWizardScene;
 
     // Transition system
     private final Paint transitionPaint;
@@ -70,6 +71,7 @@ public final class SceneManager {
         this.tribulationScene = new TribulationScene(ctx);
         this.ascensionScene = new AscensionScene(ctx);
         this.marketplaceScene = new MarketplaceScene(ctx);
+        this.nizamWizardScene = new NizamWizardScene(ctx);
         this.loadingScene.setCompleteListener(new LoadingScene.LoadingCompleteListener() {
             @Override
             public void onLoadingComplete() {
@@ -153,6 +155,7 @@ public final class SceneManager {
             case TRIBULATION: if (tribulationScene != null) tribulationScene.update(dt); break;
             case ASCENSION: if (ascensionScene != null) ascensionScene.update(dt); break;
             case MARKETPLACE: if (marketplaceScene != null) marketplaceScene.update(dt); break;
+            case NIZAM_WIZARD: if (nizamWizardScene != null) nizamWizardScene.update(dt); break;
             default: break;
         }
     }
@@ -175,6 +178,7 @@ public final class SceneManager {
             case TRIBULATION: if (tribulationScene != null) tribulationScene.render(canvas, paint, cam); break;
             case ASCENSION: if (ascensionScene != null) ascensionScene.render(canvas, paint, cam); break;
             case MARKETPLACE: if (marketplaceScene != null) marketplaceScene.render(canvas, paint, cam); break;
+            case NIZAM_WIZARD: if (nizamWizardScene != null) nizamWizardScene.render(canvas, paint, cam); break;
             default:
                 paint.setColor(0xFF000000);
                 canvas.drawRect(0, 0, screenW, screenH, paint);
@@ -304,6 +308,7 @@ public final class SceneManager {
             case TRIBULATION: if (tribulationScene != null) tribulationScene.onTouchDown(x, y); break;
             case ASCENSION: if (ascensionScene != null) ascensionScene.onTouchDown(x, y); break;
             case MARKETPLACE: if (marketplaceScene != null) marketplaceScene.onTouchDown(x, y); break;
+            case NIZAM_WIZARD: if (nizamWizardScene != null) nizamWizardScene.onTouchDown(x, y); break;
             default: break;
         }
     }
@@ -314,6 +319,7 @@ public final class SceneManager {
             case MENU: if (menuScene != null) menuScene.onTouchUp(x, y); break;
             case SECT: if (sectScene != null) sectScene.onTouchUp(x, y); break;
             case BATTLE: if (battleScene != null) battleScene.onTouchUp(x, y); break;
+            case NIZAM_WIZARD: if (nizamWizardScene != null) nizamWizardScene.onTouchUp(x, y); break;
             default: break;
         }
     }
@@ -331,6 +337,7 @@ public final class SceneManager {
     public SectScene getSectScene() { return sectScene; }
     public MenuScene getMenuScene() { return menuScene; }
     public LoadingScene getLoadingScene() { return loadingScene; }
+    public NizamWizardScene getNizamWizardScene() { return nizamWizardScene; }
     public boolean isTransitioning() { return transitioning; }
     public float getRenderTime() { return renderTime; }
 
