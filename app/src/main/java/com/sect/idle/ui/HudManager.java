@@ -226,14 +226,35 @@ public final class HudManager {
         textPaint.setTextSize(14f);
         textPaint.setColor(0xFFFFD700);
         textPaint.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText("👤 " + (d.name != null ? d.name : "Disciple"), panelX + 16f, panelY + 28f, textPaint);
+        canvas.drawText("👤 " + (d.name != null ? d.name : "Zhao Kai") + " (2-Star)", panelX + 16f, panelY + 28f, textPaint);
 
         textPaint.setTextSize(11f);
         textPaint.setColor(0xFFFFFFFF);
-        canvas.drawText("Realm: " + GameConfig.getRealmName(d.realm), panelX + 16f, panelY + 52f, textPaint);
-        canvas.drawText("Element: " + GameConfig.getElementName(d.element), panelX + 16f, panelY + 70f, textPaint);
-        canvas.drawText("HP: " + d.hp + " / " + d.maxHp, panelX + 16f, panelY + 88f, textPaint);
-        canvas.drawText("Current Task: " + GameConfig.getTaskName(d.currentTask), panelX + 16f, panelY + 106f, textPaint);
+        canvas.drawText("Realm: " + GameConfig.getRealmName(d.realm) + " | Wise", panelX + 16f, panelY + 50f, textPaint);
+        canvas.drawText("Talent: Mind Root (Grade 4)", panelX + 16f, panelY + 68f, textPaint);
+        canvas.drawText("STR: 11  AGI: 21  INT: 60  LCK: 9", panelX + 16f, panelY + 86f, textPaint);
+        canvas.drawText("Wage: 146 SS/day  |  Task: " + GameConfig.getTaskName(d.currentTask), panelX + 16f, panelY + 104f, textPaint);
+
+        // Accept / Reject Recruit Action Buttons
+        float btnW = (panelW - 48f) * 0.5f;
+        float btnH = 28f;
+        float btnY = panelY + panelH - btnH - 12f;
+
+        // Accept Button (Jade Green)
+        r2.set(panelX + 16f, btnY, panelX + 16f + btnW, btnY + btnH);
+        accentPaint.setColor(0xFF00FF88);
+        canvas.drawRoundRect(r2, 6f, 6f, accentPaint);
+        textPaint.setColor(0xFF000000);
+        textPaint.setTextAlign(Paint.Align.CENTER);
+        canvas.drawText("✓ ACCEPT", r2.centerX(), r2.centerY() + 4f, textPaint);
+
+        // Reject Button (Red)
+        r2.set(panelX + 32f + btnW, btnY, panelX + 32f + btnW * 2f, btnY + btnH);
+        accentPaint.setColor(0xFFFF5252);
+        canvas.drawRoundRect(r2, 6f, 6f, accentPaint);
+        textPaint.setColor(0xFFFFFFFF);
+        canvas.drawText("✕ REJECT", r2.centerX(), r2.centerY() + 4f, textPaint);
+        textPaint.setTextAlign(Paint.Align.LEFT);
     }
 
     public void renderBuildingDrawer(Canvas canvas, Building b, int W, int H) {

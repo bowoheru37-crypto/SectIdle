@@ -43,6 +43,12 @@ public final class BattleScene {
     private final Paint particlePaint;
     private final Paint flashPaint;
 
+    // 4 Action Buttons (80px wide) - Idle Sect v2.0
+    private final RectF btnAttackRect = new RectF();
+    private final RectF btnSkillRect = new RectF();
+    private final RectF btnItemRect = new RectF();
+    private final RectF btnFleeRect = new RectF();
+
     // Reusable rect
     private final RectF rectPool;
     private final Rect srcRect;
@@ -131,15 +137,22 @@ public final class BattleScene {
 
     private Bitmap getUnitSprite(BattleUnit u) {
         if (u == null) return null;
-        int elem = u.element;
-        int realm = u.source != null ? u.source.realm : 1;
-        boolean male = u.source != null ? u.source.isMale : (u.team == 0);
-        String key = (u.source != null && u.source.id != null ? u.source.id : u.name) + "_" + realm + "_" + elem + "_" + u.team;
+        String key = (u.source != null && u.source.id != null ? u.source.id : u.name) + "_" + u.team;
         Bitmap cached = unitSpriteCache.get(key);
         if (cached == null || cached.isRecycled()) {
             try {
-                cached = com.sect.idle.procedural.SpriteMaker.createDisciple(70, 70, elem, realm, male, 6, u.name != null ? u.name.hashCode() : 123L);
-                unitSpriteCache.put(key, cached);
+                if (u.team == 0) {
+                    if (u.name != null && u.name.contains("Zhao Kai")) {
+                        cached = com.sect.idle.procedural.IdleSectAssetGenerator.createZhaoKaiChibi(80);
+                    } else {
+                        cached = com.sect.idle.procedural.IdleSectAssetGenerator.createSectGuardianChibi(80);
+                    }
+                } else {
+                    cached = com.sect.idle.procedural.IdleSectAssetGenerator.createDemonicWolf(80);
+                }
+                if (cached != null) {
+                    unitSpriteCache.put(key, cached);
+                }
             } catch (OutOfMemoryError oom) {
                 return null;
             }
@@ -686,14 +699,15 @@ public final class BattleScene {
     }
 
     private void renderControlButtons(Canvas canvas, int w, int h) {
-        float btnW = 90f;
-        float btnH = 34f;
-        float margin = 12f;
-        float startY = h - btnH - margin;
+        // Top right simulation controls (Auto, Speed, Pause)
+        float btnW = 85f;
+        float btnH = 32f;
+        float margin = 10f;
+        float topY = 16f;
 
-        btnAutoRect.set(w - (btnW * 3f + margin * 3f), startY, w - (btnW * 2f + margin * 3f), startY + btnH);
-        btnSpeedRect.set(w - (btnW * 2f + margin * 2f), startY, w - (btnW + margin * 2f), startY + btnH);
-        btnPauseRect.set(w - (btnW + margin), startY, w - margin, startY + btnH);
+        btnAutoRect.set(w - (btnW * 3f + margin * 3f), topY, w - (btnW * 2f + margin * 3f), topY + btnH);
+        btnSpeedRect.set(w - (btnW * 2f + margin * 2f), topY, w - (btnW + margin * 2f), topY + btnH);
+        btnPauseRect.set(w - (btnW + margin), topY, w - margin, topY + btnH);
 
         buttonBgPaint.setColor(autoBattle ? 0xFF2E7D32 : 0xFF455A64);
         canvas.drawRoundRect(btnAutoRect, 6f, 6f, buttonBgPaint);
@@ -708,6 +722,48 @@ public final class BattleScene {
         buttonBgPaint.setColor(isPaused ? 0xFFC62828 : 0xFF37474F);
         canvas.drawRoundRect(btnPauseRect, 6f, 6f, buttonBgPaint);
         canvas.drawText(isPaused ? "PLAY" : "PAUSE", btnPauseRect.centerX(), btnPauseRect.centerY() + 5f, buttonTextPaint);
+
+        // 4 Action Buttons (Attack, Skill, Item, Flee) - 80px style
+        float actW = 80f;
+        float actH = 38f;
+        float actGap = 8f;
+        float actStartY = h - actH - 12f;
+        float totalActW = actW * 4f + actGap * 3f;
+        float actStartX = (w - totalActW) * 0.5f;
+
+        btnAttackRect.set(actStartX, actStartY, actStartX + actW, actStartY + actH);
+        btnSkillRect.set(actStartX + (actW + actGap), actStartY, actStartX + (actW + actGap) + actW, actStartY + actH);
+        btnItemRect.set(actStartX + (actW + actGap) * 2, actStartY, actStartX + (actW + actGap) * 2 + actW, actStartY + actH);
+        btnFleeRect.set(actStartX + (actW + actGap) * 3, actStartY, actStartX + (actW + actGap) * 3 + actW, actStartY + actH);
+
+        // Render Attack Button (Batik Gold Border)
+        buttonBgPaint.setColor(0xFF3E2723);
+        canvas.drawRoundRect(btnAttackRect, 8f, 8f, buttonBgPaint);
+        glowPaint.setColor(com.sect.idle.procedural.IdleSectAssetGenerator.COLOR_BATIK_GOLD);
+        glowPaint.setStrokeWidth(2f);
+        canvas.drawRoundRect(btnAttackRect, 8f, 8f, glowPaint);
+        canvas.drawText("⚔️ ATTACK", btnAttackRect.centerX(), btnAttackRect.centerY() + 5f, buttonTextPaint);
+
+        // Render Skill Button (Cyan Accent)
+        buttonBgPaint.setColor(0xFF006064);
+        canvas.drawRoundRect(btnSkillRect, 8f, 8f, buttonBgPaint);
+        glowPaint.setColor(com.sect.idle.procedural.IdleSectAssetGenerator.COLOR_CYAN);
+        canvas.drawRoundRect(btnSkillRect, 8f, 8f, glowPaint);
+        canvas.drawText("✨ SKILL", btnSkillRect.centerX(), btnSkillRect.centerY() + 5f, buttonTextPaint);
+
+        // Render Item Button (Jade Green)
+        buttonBgPaint.setColor(0xFF1B5E20);
+        canvas.drawRoundRect(btnItemRect, 8f, 8f, buttonBgPaint);
+        glowPaint.setColor(com.sect.idle.procedural.IdleSectAssetGenerator.COLOR_JADE_GREEN);
+        canvas.drawRoundRect(btnItemRect, 8f, 8f, glowPaint);
+        canvas.drawText("🧪 ITEM", btnItemRect.centerX(), btnItemRect.centerY() + 5f, buttonTextPaint);
+
+        // Render Flee Button (Dark Red)
+        buttonBgPaint.setColor(0xFFB71C1C);
+        canvas.drawRoundRect(btnFleeRect, 8f, 8f, buttonBgPaint);
+        glowPaint.setColor(0xFFFF5252);
+        canvas.drawRoundRect(btnFleeRect, 8f, 8f, glowPaint);
+        canvas.drawText("🏃 FLEE", btnFleeRect.centerX(), btnFleeRect.centerY() + 5f, buttonTextPaint);
     }
 
     public void onTouchDown(float x, float y) {
@@ -726,6 +782,34 @@ public final class BattleScene {
         if (btnPauseRect.contains(x, y)) {
             isPaused = !isPaused;
             try { AudioManager.getInstance(context).playSfx(AudioManager.SFX_CLICK); } catch (Throwable ignored) {}
+            return;
+        }
+
+        // Action Buttons
+        if (btnAttackRect.contains(x, y)) {
+            try { AudioManager.getInstance(context).playSfx(AudioManager.SFX_STRIKE); } catch (Throwable ignored) {}
+            if (battle != null && battle.isRunning) {
+                battle.tick();
+            }
+            return;
+        }
+        if (btnSkillRect.contains(x, y)) {
+            try { AudioManager.getInstance(context).playSfx(AudioManager.SFX_CRITICAL_STRIKE); } catch (Throwable ignored) {}
+            if (battle != null && battle.isRunning) {
+                battle.tick();
+                battle.tick();
+            }
+            return;
+        }
+        if (btnItemRect.contains(x, y)) {
+            try { AudioManager.getInstance(context).playSfx(AudioManager.SFX_PILL_CAULDRON_DING); } catch (Throwable ignored) {}
+            return;
+        }
+        if (btnFleeRect.contains(x, y)) {
+            try { AudioManager.getInstance(context).playSfx(AudioManager.SFX_DEFEAT); } catch (Throwable ignored) {}
+            if (battleListener != null) {
+                battleListener.onBattleEnded(false);
+            }
             return;
         }
 

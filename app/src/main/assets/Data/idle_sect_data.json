@@ -1,0 +1,163 @@
+{
+  "version": "2.0-ItelA70-Ultra",
+  "sect": {
+    "name": "Cloud Mist Sect",
+    "realm": "Mortal",
+    "resources": {
+      "SS": 1000,
+      "Jade": 50,
+      "Essence": 20
+    },
+    "time": "Y1 M1 D2 07:00 Spring",
+    "income": "24/day"
+  },
+  "disciples": [
+    {
+      "id": "zhao_kai",
+      "name": "Zhao Kai",
+      "realm": "Qi Refining",
+      "stars": "2-Star",
+      "stats": {
+        "STR": 11,
+        "AGI": 21,
+        "INT": 60,
+        "LCK": 9
+      },
+      "talent": "Mind Root (Grade 4)",
+      "personality": "Wise",
+      "wage": "146 SS/day",
+      "element": "None",
+      "portrait": "zhao_kai_chibi_512.png"
+    },
+    {
+      "id": "sect_guardian",
+      "name": "Sect Guardian",
+      "level": 18,
+      "hp": 540,
+      "max_hp": 720,
+      "sp": 100,
+      "atk": 86,
+      "def": 42,
+      "chibi": "guardian_jade_512.png"
+    }
+  ],
+  "buildings": [
+    {
+      "id": "spirit_mine",
+      "name": "Spirit Mine",
+      "icon": "mine_crystal",
+      "income": "60 SS/day",
+      "cost": 200
+    },
+    {
+      "id": "martial_arena",
+      "name": "Martial Arena",
+      "icon": "arena_bambu",
+      "income": "+25 Rep",
+      "cost": 300
+    },
+    {
+      "id": "spirit_garden",
+      "name": "Spirit Garden",
+      "icon": "sawah_padi",
+      "income": "20 Essence/day",
+      "cost": 150
+    },
+    {
+      "id": "library",
+      "name": "Library",
+      "icon": "candi_library",
+      "income": "+10% Cultivation",
+      "cost": 250
+    }
+  ],
+  "battle": {
+    "round": "Round 1 | Turn 25",
+    "enemies": [
+      "Corrupted Fiend",
+      "Demonic Wolf"
+    ],
+    "log": [
+      "Battle begins! Round 1",
+      "DESPERATION SUPER COMBO! Sect Guardian unleashes Heavenly Qi Clash!",
+      "CRITICAL FINISHER! Dealt 369 dmg to Demonic Wolf!",
+      "HEAVENLY EXECUTION! Sect Guardian utterly vanquished Demonic Wolf!"
+    ]
+  },
+  "war": {
+    "rival": "Blood Demon Sect",
+    "power_needed": 400,
+    "loot": {
+      "stones": 500,
+      "jade": 15
+    },
+    "tiers": {
+      "raid": {
+        "stars": 1,
+        "risk": "Low"
+      },
+      "assault": {
+        "stars": 2,
+        "risk": "Medium"
+      },
+      "total_war": {
+        "stars": 3,
+        "risk": "High"
+      }
+    }
+  },
+  "market": [
+    {
+      "name": "Spirit Herb Bundle",
+      "price": 50,
+      "currency": "SS"
+    },
+    {
+      "name": "Iron-Wood Timber",
+      "price": 100,
+      "currency": "SS"
+    },
+    {
+      "name": "Nine-Yang Spirit Ore",
+      "price": 200,
+      "currency": "SS"
+    },
+    {
+      "name": "Revitalizing Pill",
+      "price": 500,
+      "currency": "SS"
+    }
+  ],
+  "settings": {
+    "bgm": {
+      "name": "Immortal Guzheng Music",
+      "volume": 60,
+      "enabled": true
+    },
+    "sfx": {
+      "name": "Martial Arts & Magic SFX",
+      "volume": 85,
+      "enabled": true
+    },
+    "graphics": {
+      "quality": "Low",
+      "options": [
+        "Low",
+        "Med",
+        "High",
+        "Ultra"
+      ],
+      "qi_particles": false,
+      "dynamic_lighting": false
+    },
+    "simulation": {
+      "auto_save": true,
+      "floating_damage": true
+    },
+    "telemetry": {
+      "jvm_heap": "6MB / 128MB",
+      "target_fps": 60,
+      "memory_budget_mb": 96
+    }
+  }
+}
