@@ -785,28 +785,93 @@ public final class BattleScene {
             return;
         }
 
-        // Action Buttons
+        // Action Buttons - Interactive visual animations & rich SFX triggers
         if (btnAttackRect.contains(x, y)) {
             try { AudioManager.getInstance(context).playSfx(AudioManager.SFX_STRIKE); } catch (Throwable ignored) {}
-            if (battle != null && battle.isRunning) {
-                battle.tick();
+            triggerFlash(0x40FFD700);
+            shakeIntensity = 8f;
+            if (battle != null) {
+                ArrayList<BattleUnit> units = battle.getUnits();
+                for (int u = 0; u < units.size(); u++) {
+                    BattleUnit unit = units.get(u);
+                    if (unit.team != 0 && unit.isAlive) {
+                        float enemyX = 300f;
+                        float enemyY = 200f;
+                        addSlashPoint(enemyX - 30f, enemyY - 30f);
+                        addSlashPoint(enemyX, enemyY);
+                        addSlashPoint(enemyX + 30f, enemyY + 30f);
+                        spawnHitEffect(enemyX, enemyY, 0xFFFFD700);
+                        break;
+                    }
+                }
+                if (battle.isRunning) {
+                    battle.tick();
+                }
             }
             return;
         }
         if (btnSkillRect.contains(x, y)) {
-            try { AudioManager.getInstance(context).playSfx(AudioManager.SFX_CRITICAL_STRIKE); } catch (Throwable ignored) {}
-            if (battle != null && battle.isRunning) {
-                battle.tick();
-                battle.tick();
+            try {
+                AudioManager.getInstance(context).playSfx(AudioManager.SFX_CRITICAL_STRIKE);
+                AudioManager.getInstance(context).playSfx(AudioManager.SFX_QI_BURST);
+            } catch (Throwable ignored) {}
+            triggerFlash(0x8000E5FF);
+            shakeIntensity = 16f;
+            if (battle != null) {
+                ArrayList<BattleUnit> units = battle.getUnits();
+                for (int u = 0; u < units.size(); u++) {
+                    BattleUnit unit = units.get(u);
+                    if (unit.team != 0 && unit.isAlive) {
+                        float enemyX = 300f;
+                        float enemyY = 200f;
+                        addSlashPoint(enemyX - 50f, enemyY);
+                        addSlashPoint(enemyX, enemyY - 40f);
+                        addSlashPoint(enemyX + 50f, enemyY + 20f);
+                        spawnHitEffect(enemyX, enemyY, 0xFF00E5FF);
+                        spawnHitEffect(enemyX, enemyY, 0xFFFFD700);
+                        spawnDamageText(enemyX, enemyY - 20f, "CRIT SPIRIT BURST!", 0xFF00E5FF);
+                        break;
+                    }
+                }
+                if (battle.isRunning) {
+                    battle.tick();
+                    battle.tick();
+                }
             }
             return;
         }
         if (btnItemRect.contains(x, y)) {
-            try { AudioManager.getInstance(context).playSfx(AudioManager.SFX_PILL_CAULDRON_DING); } catch (Throwable ignored) {}
+            try {
+                AudioManager.getInstance(context).playSfx(AudioManager.SFX_PILL_CAULDRON_DING);
+                AudioManager.getInstance(context).playSfx(AudioManager.SFX_BESTOW_PILL);
+            } catch (Throwable ignored) {}
+            triggerFlash(0x5000FF88);
+            if (battle != null) {
+                ArrayList<BattleUnit> units = battle.getUnits();
+                for (int u = 0; u < units.size(); u++) {
+                    BattleUnit unit = units.get(u);
+                    if (unit.team == 0 && unit.isAlive) {
+                        unit.hp = Math.min(unit.maxHp, unit.hp + (int)(unit.maxHp * 0.35f));
+                        float heroX = PADDING * 2f + UNIT_W * 0.5f;
+                        float heroY = 200f;
+                        spawnHitEffect(heroX, heroY, 0xFF00FF88);
+                        spawnDamageText(heroX, heroY - 20f, "+RECOVERY PILL", 0xFF00FF88);
+                        break;
+                    }
+                }
+            }
             return;
         }
         if (btnFleeRect.contains(x, y)) {
-            try { AudioManager.getInstance(context).playSfx(AudioManager.SFX_DEFEAT); } catch (Throwable ignored) {}
+            try {
+                AudioManager.getInstance(context).playSfx(AudioManager.SFX_FAIL);
+                AudioManager.getInstance(context).playSfx(AudioManager.SFX_DEFEAT);
+            } catch (Throwable ignored) {}
+            triggerFlash(0x60000000);
+            float heroX = PADDING * 2f + UNIT_W * 0.5f;
+            float heroY = 200f;
+            spawnHitEffect(heroX, heroY, 0xFF888888);
+            spawnDamageText(heroX, heroY - 20f, "SMOKE ESCAPE!", 0xFFB71C1C);
             if (battleListener != null) {
                 battleListener.onBattleEnded(false);
             }
