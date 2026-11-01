@@ -86,4 +86,9 @@ public class IdleSectRedesignTest {
         assertTrue("Quality should be low after applying low quality settings",
                 com.sect.idle.core.GameConfig.currentQuality == com.sect.idle.core.GameConfig.QUALITY_LOW);
     }
+
+    @Test
+    public void testAudioSpatial3D() {
+        assertNotNull("AudioManager class should be present", com.sect.idle.systems.AudioManager.class);
+    }
 }

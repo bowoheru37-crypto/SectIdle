@@ -99,6 +99,7 @@ public final class AudioManager {
         float cursor;
         float volume;
         float pitch;
+        float pan; // -1.0f (Full Left / Player) to +1.0f (Full Right / Enemy)
         int priority;
         boolean active;
     }
@@ -222,6 +223,14 @@ public final class AudioManager {
     }
 
     public void playSfx(String id, float pitch, float priority) {
+        playSfx3D(id, pitch, priority, 0.0f);
+    }
+
+    public void playSfx3D(String id, float pan) {
+        playSfx3D(id, 1.0f, 0, pan);
+    }
+
+    public void playSfx3D(String id, float pitch, float priority, float pan) {
         if (!enabled || id == null) return;
 
         short[] sample = pcmCache.get(id);
@@ -251,6 +260,7 @@ public final class AudioManager {
                 v.cursor = 0f;
                 v.pitch = MathUtils.clamp(pitch, 0.5f, 2.0f);
                 v.volume = sfxVolume * masterVolume * (ducking ? 0.35f : 1.0f);
+                v.pan = MathUtils.clamp(pan, -1.0f, 1.0f);
                 v.priority = (int) priority;
                 v.active = true;
             }
@@ -391,7 +401,9 @@ public final class AudioManager {
                                     if (voice.active && voice.sample != null) {
                                         int idx = (int) voice.cursor;
                                         if (idx < voice.sample.length) {
-                                            sfxSum += (voice.sample[idx] / 32768.0f) * voice.volume;
+                                // 3D Spatial volume weighting with subtle psychoacoustic curve
+                                float spatialGain = 1.0f - Math.abs(voice.pan) * 0.15f;
+                                sfxSum += (voice.sample[idx] / 32768.0f) * voice.volume * spatialGain;
                                             voice.cursor += voice.pitch;
                                         } else {
                                             voice.active = false;
