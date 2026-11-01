@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const VALID_TARGETS = ['psx', 'ps2', 'nds', 'psp', 'vita', 'switch', 'ps3', 'retroarch', 'windows', 'mac', 'linux', 'desktop', 'mobile', 'ios', 'web'];
+const VALID_TARGETS = ['psx', 'ps2', 'nds', 'psp', 'vita', 'switch', 'ps3', 'retroarch', 'windows', 'mac', 'linux', 'desktop', 'mobile', 'ios', 'web', 'nizam'];
 
 function parseTargetFlags() {
   const args = process.argv.slice(2);
