@@ -43,6 +43,8 @@ public final class LoadingScene {
     private final RectF cardRect;
     private final RectF barRect;
     private final RectF barFillRect;
+    // Performance Optimization: Reusable RectF for parallax background rendering to eliminate per-frame GC allocations
+    private final RectF bgRect;
 
     private static final String[] LORE_QUOTES = {
         "\"The Dao that can be spoken is not the eternal Dao.\"",
@@ -115,6 +117,7 @@ public final class LoadingScene {
         cardRect = new RectF();
         barRect = new RectF();
         barFillRect = new RectF();
+        bgRect = new RectF();
 
         for (int i = 0; i < PARTICLE_COUNT; i++) {
             resetParticle(i, true);
@@ -185,7 +188,9 @@ public final class LoadingScene {
         canvas.drawRect(0, 0, w, h, bgPaint);
 
         if (parallaxBg != null && !parallaxBg.isRecycled()) {
-            canvas.drawBitmap(parallaxBg, null, new RectF(0, 0, w, h), paint);
+            // Optimization: Reuse pre-allocated bgRect to avoid per-frame RectF heap allocation during render loop
+            bgRect.set(0, 0, w, h);
+            canvas.drawBitmap(parallaxBg, null, bgRect, paint);
         }
 
         // Render ambient spirit particles
