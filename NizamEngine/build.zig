@@ -3,6 +3,10 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .ReleaseSmall });
+    const enable_raylib = b.option(bool, "enable-raylib", "Link optional C Raylib backend") orelse false;
+
+    const options = b.addOptions();
+    options.addOption(bool, "enable_raylib", enable_raylib);
 
     const exe = b.addExecutable(.{
         .name = "NizamGame",
@@ -10,7 +14,12 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    exe.linkLibC();
+    exe.root_module.addOptions("build_options", options);
+
+    if (enable_raylib) {
+        exe.linkLibC();
+    }
+
     b.installArtifact(exe);
 
     // Auto build untuk Android & Web

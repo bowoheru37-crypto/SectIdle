@@ -6,6 +6,7 @@ import com.sect.idle.models.Building;
 import com.sect.idle.models.Disciple;
 import com.sect.idle.models.Item;
 import com.sect.idle.models.Quest;
+import com.sect.idle.systems.RNG;
 import java.util.ArrayList;
 
 /**
@@ -196,6 +197,63 @@ public final class SectData {
             return true;
         }
         return false;
+    }
+
+    public static final String[] DEFAULT_DISCIPLE_NAMES = {
+        "Li Yun", "Zhang Wei", "Wang Fang", "Chen Ming", "Liu Hua",
+        "Zhao Kai", "Sun Mei", "Wu Jian", "Huang Long", "Xiao Feng"
+    };
+
+    public Disciple createRandomDisciple(String[] namePool) {
+        String[] names = (namePool != null && namePool.length > 0) ? namePool : DEFAULT_DISCIPLE_NAMES;
+        Disciple d = new Disciple();
+        d.name = RNG.pick(names);
+        d.isMale = RNG.chance(50);
+        d.initStats(
+            RNG.nextInt(10, 40), RNG.nextInt(10, 40), RNG.nextInt(10, 40),
+            RNG.nextInt(5, 30), RNG.nextInt(10, 30), RNG.nextInt(10, 30), RNG.nextInt(5, 25)
+        );
+        d.realm = RNG.nextInt(2);
+        d.realmExp = RNG.nextInt(500);
+        d.element = RNG.nextInt(GameConfig.ELEM_COUNT);
+        d.personality = RNG.nextInt(GameConfig.PER_COUNT);
+        d.colorTint = GameConfig.getElementColor(d.element);
+
+        try {
+            TalentSystem.generateTalent(d);
+        } catch (Throwable ignored) {
+            d.talentType = GameConfig.TAL_NONE;
+        }
+
+        try {
+            HobbySystem.assignRandomHobby(d);
+        } catch (Throwable ignored) {
+            d.hobby = 0;
+        }
+
+        d.dailyWage = d.getExpectedWage();
+        d.recalcCombat();
+        d.updateEfficiency();
+
+        d.position.set(2000f + RNG.nextFloat(-120f, 120f), 2000f + RNG.nextFloat(-120f, 120f));
+        d.targetPos.set(d.position.x, d.position.y);
+        return d;
+    }
+
+    public void initializeStarterSect() {
+        reset();
+        for (int i = 0; i < 3; i++) {
+            Disciple d = createRandomDisciple(DEFAULT_DISCIPLE_NAMES);
+            if (i == 0) d.currentTask = GameConfig.TASK_FARMING;
+            else if (i == 1) d.currentTask = GameConfig.TASK_ALCHEMY;
+            else d.currentTask = GameConfig.TASK_GUARD;
+            d.updateEfficiency();
+            addDisciple(d);
+        }
+        if (buildings != null && !buildings.isEmpty() && buildings.get(0) != null) {
+            buildings.get(0).build();
+        }
+        recalculateEconomy();
     }
 
     public void checkQuests(int type, int amount) {

@@ -2,14 +2,14 @@
 
 @layer base {
   body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
     background-color: #05060b;
     color: #f1f5f9;
   }
 }
 
 .font-serif-title {
-  font-family: 'Cinzel', 'Noto Serif SC', serif;
+  font-family: Georgia, 'Palatino Linotype', 'Book Antiqua', Palatino, 'Noto Serif CJK SC', 'Songti SC', serif;
 }
 
 /* Custom Xianxia scrollbars */
@@ -29,16 +29,35 @@
 }
 
 @keyframes pulse-slow {
-  0%, 100% { opacity: 0.8; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.04); }
-}
-
-@keyframes float-qi {
-  0% { transform: translateY(0px) rotate(0deg); opacity: 0.3; }
-  50% { transform: translateY(-15px) rotate(180deg); opacity: 0.9; }
-  100% { transform: translateY(-30px) rotate(360deg); opacity: 0; }
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.03); }
 }
 
 .animate-pulse-slow {
   animation: pulse-slow 3s infinite ease-in-out;
+}
+
+/* Eco / Low-End Mobile (1GB RAM / Reduced Motion) GPU & Battery Saver */
+[data-perf='eco'] .animate-pulse-slow,
+[data-perf='eco'] .animate-ping,
+[data-perf='eco'] .animate-spin,
+[data-perf='eco'] .animate-pulse,
+[data-perf='eco'] .animate-bounce {
+  animation: none !important;
+}
+
+[data-perf='eco'] .backdrop-blur-md,
+[data-perf='eco'] .backdrop-blur-sm {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-slow,
+  .animate-ping,
+  .animate-spin,
+  .animate-pulse,
+  .animate-bounce {
+    animation: none !important;
+  }
 }

@@ -73,13 +73,7 @@ public final class MobileThermalGovernor {
     }
 
     public void applyLowQualitySettings() {
-        // Force Low Quality settings (No dynamic lighting, no heavy particles)
-        GameConfig.currentQuality = GameConfig.QUALITY_LOW;
-        GameConfig.ENABLE_SHADOWS = false;
-        GameConfig.ENABLE_LIGHTING = false;
-        GameConfig.ENABLE_PARTICLES = false;
-        GameConfig.ENABLE_BLOOM = false;
-        GameConfig.ENABLE_POST_PROCESS = false;
+        GameConfig.applyQuality(GameConfig.QUALITY_LOW);
     }
 
     public static long getJvmHeapUsedMb() {

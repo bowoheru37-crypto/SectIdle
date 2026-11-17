@@ -1,10 +1,11 @@
 const std = @import("std");
+const build_options = @import("build_options");
 const wizard = @import("wizard.zig");
 
-// Optional C Raylib header include
-const rl = @cImport({
+// Optional C Raylib header include when -Denable-raylib=true is passed
+const rl = if (build_options.enable_raylib) @cImport({
     @cInclude("raylib.h");
-});
+}) else struct {};
 
 // ARENA MEMORY - ANTI LEAK / OOM / GC
 // Khusus di-optimize untuk ponsel entry-class (misal Itel A70 1GB-3GB RAM)
@@ -26,7 +27,7 @@ pub fn main() !void {
     defer _ = frame_arena.deinit();
 
     std.debug.print("Initializing NIZAM ENGINE v1.2.0 - Indie Edition (Wizard Mode)\n", .{});
-    std.debug.print("Optimized for Itel A70 • Arena Memory Active • No GC\n", .{});
+    std.debug.print("Optimized for Itel A70 • Arena Memory Active • No GC • Raylib={}\n", .{build_options.enable_raylib});
 
     // Jalankan Wizard Default Build
     const default_platforms = [_]wizard.Platform{

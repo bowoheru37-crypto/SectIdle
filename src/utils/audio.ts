@@ -1,14 +1,40 @@
-// Xianxia Web Audio Synthesizer for Authentic Immersion
+// Xianxia Web Audio Synthesizer - Unified & Battery/Lifecycle-Aware
 
 class SoundManager {
   private ctx: AudioContext | null = null;
   public enabled: boolean = true;
-  public bgmEnabled: boolean = true;
+  public bgmEnabled: boolean = false;
   private bgmInterval: number | null = null;
+  private listenersAttached: boolean = false;
 
-  private initCtx() {
+  private ensureVisibilityLifecycle() {
+    if (this.listenersAttached || typeof document === 'undefined') return;
+    this.listenersAttached = true;
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (this.bgmInterval) {
+          clearInterval(this.bgmInterval);
+          this.bgmInterval = null;
+        }
+        if (this.ctx && this.ctx.state === 'running') {
+          this.ctx.suspend().catch(() => {});
+        }
+      } else if (this.bgmEnabled && this.enabled) {
+        this.startBgmInterval();
+      }
+    });
+  }
+
+  private initCtx(): AudioContext | null {
+    if (typeof window === 'undefined' || !this.enabled) return null;
+    if (typeof document !== 'undefined' && document.hidden) return null;
+    this.ensureVisibilityLifecycle();
+
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
       }
@@ -16,179 +42,181 @@ class SoundManager {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
     }
+    return this.ctx;
   }
 
-  // Play peaceful Chinese pentatonic scale harp / guzheng note
   public playGuzhengNote(noteIndex = 0) {
-    if (!this.enabled) return;
-    this.initCtx();
-    if (!this.ctx) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
 
-    // Pentatonic scale frequencies in Hz (Guzheng Gong/Shang/Jiao/Zhi/Yu)
     const scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00];
     const freq = scale[Math.abs(noteIndex) % scale.length];
 
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
 
-    // Pluck envelope: sharp attack, long ringing release
-    gain.gain.setValueAtTime(0.001, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.18, this.ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 1.2);
+    gain.gain.setValueAtTime(0.001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.2);
 
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(ctx.destination);
 
     osc.start();
-    osc.stop(this.ctx.currentTime + 1.3);
+    osc.stop(ctx.currentTime + 1.3);
   }
 
-  // Sword clash / strike SFX
   public playSwordStrike() {
-    if (!this.enabled) return;
-    this.initCtx();
-    if (!this.ctx) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
 
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(150, this.ctx.currentTime + 0.15);
+    osc.frequency.setValueAtTime(1200, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.15);
 
-    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
 
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(ctx.destination);
 
     osc.start();
-    osc.stop(this.ctx.currentTime + 0.22);
+    osc.stop(ctx.currentTime + 0.22);
   }
 
-  // Critical strike slash with thunderous impact
   public playCriticalStrike() {
-    if (!this.enabled) return;
-    this.initCtx();
-    if (!this.ctx) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
 
-    // Layer 1: high metallic ring
-    const osc1 = this.ctx.createOscillator();
-    const gain1 = this.ctx.createGain();
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
     osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(2400, this.ctx.currentTime);
-    osc1.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.25);
-    gain1.gain.setValueAtTime(0.3, this.ctx.currentTime);
-    gain1.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+    osc1.frequency.setValueAtTime(2400, ctx.currentTime);
+    osc1.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.25);
+    gain1.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
     osc1.connect(gain1);
-    gain1.connect(this.ctx.destination);
+    gain1.connect(ctx.destination);
 
-    // Layer 2: low boom
-    const osc2 = this.ctx.createOscillator();
-    const gain2 = this.ctx.createGain();
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
     osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(160, this.ctx.currentTime);
-    osc2.frequency.exponentialRampToValueAtTime(45, this.ctx.currentTime + 0.35);
-    gain2.gain.setValueAtTime(0.35, this.ctx.currentTime);
-    gain2.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+    osc2.frequency.setValueAtTime(160, ctx.currentTime);
+    osc2.frequency.exponentialRampToValueAtTime(45, ctx.currentTime + 0.35);
+    gain2.gain.setValueAtTime(0.35, ctx.currentTime);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
     osc2.connect(gain2);
-    gain2.connect(this.ctx.destination);
+    gain2.connect(ctx.destination);
 
     osc1.start();
     osc2.start();
-    osc1.stop(this.ctx.currentTime + 0.45);
-    osc2.stop(this.ctx.currentTime + 0.45);
+    osc1.stop(ctx.currentTime + 0.45);
+    osc2.stop(ctx.currentTime + 0.45);
   }
 
-  // Heavenly Bell / Breakthrough Chime
   public playBreakthrough() {
-    if (!this.enabled) return;
-    this.initCtx();
-    if (!this.ctx) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
 
     const chords = [523.25, 659.25, 783.99, 1046.50];
     chords.forEach((f, idx) => {
-      const osc = this.ctx!.createOscillator();
-      const gain = this.ctx!.createGain();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(f, this.ctx!.currentTime + idx * 0.08);
+      osc.frequency.setValueAtTime(f, ctx.currentTime + idx * 0.08);
 
-      gain.gain.setValueAtTime(0.001, this.ctx!.currentTime + idx * 0.08);
-      gain.gain.linearRampToValueAtTime(0.18, this.ctx!.currentTime + idx * 0.08 + 0.03);
-      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx!.currentTime + idx * 0.08 + 1.5);
+      gain.gain.setValueAtTime(0.001, ctx.currentTime + idx * 0.08);
+      gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + idx * 0.08 + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + idx * 0.08 + 1.5);
 
       osc.connect(gain);
-      gain.connect(this.ctx!.destination);
+      gain.connect(ctx.destination);
 
-      osc.start(this.ctx!.currentTime + idx * 0.08);
-      osc.stop(this.ctx!.currentTime + idx * 0.08 + 1.6);
+      osc.start(ctx.currentTime + idx * 0.08);
+      osc.stop(ctx.currentTime + idx * 0.08 + 1.6);
     });
   }
 
-  // Lightning Deflection / Qi Shield zap
   public playLightningZap() {
-    if (!this.enabled) return;
-    this.initCtx();
-    if (!this.ctx) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
 
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
     osc.type = 'square';
-    osc.frequency.setValueAtTime(800 + Math.random() * 400, this.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(200, this.ctx.currentTime + 0.12);
+    osc.frequency.setValueAtTime(800 + Math.random() * 400, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.12);
 
-    gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
 
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(ctx.destination);
 
     osc.start();
-    osc.stop(this.ctx.currentTime + 0.16);
+    osc.stop(ctx.currentTime + 0.16);
   }
 
-  // UI Click sound
   public playClick() {
-    if (!this.enabled) return;
-    this.initCtx();
-    if (!this.ctx) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
 
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, this.ctx.currentTime);
-    gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.06);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    gain.gain.setValueAtTime(0.06, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
 
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(ctx.destination);
 
     osc.start();
-    osc.stop(this.ctx.currentTime + 0.07);
+    osc.stop(ctx.currentTime + 0.07);
   }
 
-  // Start background ambient Guzheng generator
-  public toggleBgm(state?: boolean) {
-    if (state !== undefined) {
-      this.bgmEnabled = state;
-    } else {
-      this.bgmEnabled = !this.bgmEnabled;
-    }
-
+  private startBgmInterval() {
     if (this.bgmInterval) {
       clearInterval(this.bgmInterval);
       this.bgmInterval = null;
     }
+    if (typeof window === 'undefined' || !this.bgmEnabled || !this.enabled) return;
 
+    this.bgmInterval = window.setInterval(() => {
+      if (!this.bgmEnabled || !this.enabled || (typeof document !== 'undefined' && document.hidden)) return;
+      const note = Math.floor(Math.random() * 8);
+      this.playGuzhengNote(note);
+    }, 3500);
+  }
+
+  public setSoundEnabled(enabled: boolean) {
+    this.enabled = enabled;
+    if (!enabled) {
+      if (this.bgmInterval) {
+        clearInterval(this.bgmInterval);
+        this.bgmInterval = null;
+      }
+      if (this.ctx && this.ctx.state === 'running') {
+        this.ctx.suspend().catch(() => {});
+      }
+    } else if (this.bgmEnabled) {
+      this.startBgmInterval();
+    }
+  }
+
+  public toggleBgm(state?: boolean) {
+    this.bgmEnabled = state !== undefined ? state : !this.bgmEnabled;
     if (this.bgmEnabled && this.enabled) {
-      this.bgmInterval = window.setInterval(() => {
-        if (!this.bgmEnabled) return;
-        const note = Math.floor(Math.random() * 8);
-        this.playGuzhengNote(note);
-      }, 3500);
+      this.startBgmInterval();
+    } else if (this.bgmInterval) {
+      clearInterval(this.bgmInterval);
+      this.bgmInterval = null;
     }
   }
 }

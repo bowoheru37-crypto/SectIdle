@@ -20,6 +20,7 @@ Validates real binary container headers & magic bytes for exported binaries:
 
 import os
 import sys
+import argparse
 from pathlib import Path
 
 # Resolve REPO_ROOT correctly whether executed from root or src/
@@ -29,21 +30,21 @@ REPO_ROOT = THIS_FILE.parent.parent if THIS_FILE.parent.name == "src" else THIS_
 EXPORT_DIR = REPO_ROOT / "export"
 
 SYSTEM_TARGETS = [
-    {"system": "DuckStation / PCSX-reARMed (PSX/PS1)", "file": "NUSA_PSX.BIN", "magic": b"CD001", "magic_offset": 32769, "expected_fps": 60, "boot_sec": 1.8},
-    {"system": "PPSSPP (PSP)", "file": "NUSA_PSP.ISO", "magic": b"CD001", "magic_offset": 32769, "expected_fps": 60, "boot_sec": 2.8},
-    {"system": "AetherSX2 / PCSX2 (PS2)", "file": "NUSA_PS2.ISO", "magic": b"CD001", "magic_offset": 32769, "expected_fps": 60, "boot_sec": 3.2},
-    {"system": "MelonDS / DraStic (NDS)", "file": "NUSA_NDS.NDS", "magic": b"NUSA_LEGENDS", "magic_offset": 0, "expected_fps": 60, "boot_sec": 2.1},
-    {"system": "Vita3K (PS Vita)", "file": "NUSA_VITA.VPK", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 2.5},
-    {"system": "Ryujinx / Yuzu (Switch)", "file": "NUSA_SWITCH.NSP", "magic": b"PFS0", "magic_offset": 0, "expected_fps": 60, "boot_sec": 4.0},
-    {"system": "RPCS3 (PS3)", "file": "NUSA_PS3.PKG", "magic": b"\x7fPKG", "magic_offset": 0, "expected_fps": 60, "boot_sec": 3.5},
-    {"system": "RetroArch Libretro Frontend", "file": "NUSA_RETROARCH.so", "magic": b"\x7fELF", "magic_offset": 0, "expected_fps": 60, "boot_sec": 1.2},
-    {"system": "Windows x64 / ARM64", "file": "NUSA_WINDOWS.exe", "magic": b"MZ", "magic_offset": 0, "expected_fps": 120, "boot_sec": 1.0},
-    {"system": "macOS Universal Binary", "file": "NUSA_MAC.dmg", "magic": b"\xfe\xed\xfa\xce", "magic_offset": 0, "expected_fps": 120, "boot_sec": 1.1},
-    {"system": "Linux AppImage", "file": "NUSA_LINUX.AppImage", "magic": b"\x7fELF", "magic_offset": 0, "expected_fps": 120, "boot_sec": 0.9},
-    {"system": "Android Mobile APK (Itel A70)", "file": "NUSA_MOBILE.apk", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 2.0},
-    {"system": "iOS Mobile App Package", "file": "NUSA_IOS_PACKAGE.ipa", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 1.9},
-    {"system": "HTML5 Web Game Browser Engine", "file": "NUSA_WEB_GAME.zip", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 0.5},
-    {"system": "Nizam Engine v1.2.0 Standalone Bundle", "file": "NIZAM_ENGINE_V120.zip", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 0.4},
+    {"id": "psx", "system": "DuckStation / PCSX-reARMed (PSX/PS1)", "file": "NUSA_PSX.BIN", "magic": b"CD001", "magic_offset": 32769, "expected_fps": 60, "boot_sec": 1.8},
+    {"id": "psp", "system": "PPSSPP (PSP)", "file": "NUSA_PSP.ISO", "magic": b"CD001", "magic_offset": 32769, "expected_fps": 60, "boot_sec": 2.8},
+    {"id": "ps2", "system": "AetherSX2 / PCSX2 (PS2)", "file": "NUSA_PS2.ISO", "magic": b"CD001", "magic_offset": 32769, "expected_fps": 60, "boot_sec": 3.2},
+    {"id": "nds", "system": "MelonDS / DraStic (NDS)", "file": "NUSA_NDS.NDS", "magic": b"NUSA_LEGENDS", "magic_offset": 0, "expected_fps": 60, "boot_sec": 2.1},
+    {"id": "vita", "system": "Vita3K (PS Vita)", "file": "NUSA_VITA.VPK", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 2.5},
+    {"id": "switch", "system": "Ryujinx / Yuzu (Switch)", "file": "NUSA_SWITCH.NSP", "magic": b"PFS0", "magic_offset": 0, "expected_fps": 60, "boot_sec": 4.0},
+    {"id": "ps3", "system": "RPCS3 (PS3)", "file": "NUSA_PS3.PKG", "magic": b"\x7fPKG", "magic_offset": 0, "expected_fps": 60, "boot_sec": 3.5},
+    {"id": "retroarch", "system": "RetroArch Libretro Frontend", "file": "NUSA_RETROARCH.so", "magic": b"\x7fELF", "magic_offset": 0, "expected_fps": 60, "boot_sec": 1.2},
+    {"id": "windows", "system": "Windows x64 / ARM64", "file": "NUSA_WINDOWS.exe", "magic": b"MZ", "magic_offset": 0, "expected_fps": 120, "boot_sec": 1.0},
+    {"id": "mac", "system": "macOS Universal Binary", "file": "NUSA_MAC.dmg", "magic": b"\xfe\xed\xfa\xce", "magic_offset": 0, "expected_fps": 120, "boot_sec": 1.1},
+    {"id": "linux", "system": "Linux AppImage", "file": "NUSA_LINUX.AppImage", "magic": b"\x7fELF", "magic_offset": 0, "expected_fps": 120, "boot_sec": 0.9},
+    {"id": "mobile", "system": "Android Mobile APK (Itel A70)", "file": "NUSA_MOBILE.apk", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 2.0},
+    {"id": "ios", "system": "iOS Mobile App Package", "file": "NUSA_IOS_PACKAGE.ipa", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 1.9},
+    {"id": "web", "system": "HTML5 Web Game Browser Engine", "file": "NUSA_WEB_GAME.zip", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 0.5},
+    {"id": "nizam", "system": "Nizam Engine v1.2.0 Standalone Bundle", "file": "NIZAM_ENGINE_V120.zip", "magic": b"PK\x03\x04", "magic_offset": 0, "expected_fps": 60, "boot_sec": 0.4},
 ]
 
 
@@ -78,22 +79,33 @@ def test_artifact(item: dict) -> bool:
 
 
 def main():
-    print("=================================================");
-    print("  CHIMERA v6.0 SYSTEM & EMULATOR AUTO-TEST        ");
-    print("=================================================");
+    parser = argparse.ArgumentParser(description="Chimera v6.0 Emulator & System Auto-Test")
+    parser.add_argument("--targets", default="all", help="Comma-separated target IDs or 'all'")
+    args, _ = parser.parse_known_args()
+
+    selected_ids = None if args.targets == "all" else {t.strip().lower() for t in args.targets.split(",") if t.strip()}
+    if selected_ids and "desktop" in selected_ids:
+        selected_ids.update(["windows", "mac", "linux"])
+
+    targets = [t for t in SYSTEM_TARGETS if selected_ids is None or t["id"] in selected_ids]
+
+    print("=================================================")
+    print("  CHIMERA v6.0 SYSTEM & EMULATOR AUTO-TEST        ")
+    print("=================================================")
 
     passed = 0
     failed = 0
 
-    for target in SYSTEM_TARGETS:
+    for target in targets:
         if test_artifact(target):
             passed += 1
         else:
             failed += 1
 
-    print("=================================================");
-    print(f"[✓] Auto-Test Harness Summary: {passed} PASSED, {failed} FAILED");
-    print("=================================================");
+    print("=================================================")
+    print(f"[✓] Auto-Test Harness Summary: {passed} PASSED, {failed} FAILED")
+    print("=================================================")
+    sys.exit(1 if failed > 0 or passed == 0 else 0)
 
 
 if __name__ == "__main__":

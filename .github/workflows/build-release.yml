@@ -1,100 +1,537 @@
-name: Build & Publish Release Mobile, Web, Desktop & Console Artifacts
+name: Chimera v6.0 Universal Multi-Console, Multi-Kernel & Multi-OS Release
 
 on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
   schedule:
-    - cron: '0 3 * * 0' # Weekly Sunday schedule
+    - cron: '0 3 * * 0' # Weekly Sunday full multiplatform build
   workflow_dispatch:
+    inputs:
+      console_targets:
+        description: 'Console targets (all or comma-separated: psx,ps2,nds,psp,vita,switch,ps3,retroarch,web,ios,mobile,nizam)'
+        required: false
+        default: 'all'
+        type: string
+      os_targets:
+        description: 'Desktop/Web runner OS scope'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - linux-only
+          - windows-only
+          - macos-only
+      kernel_targets:
+        description: 'NizamEngine native kernel cross-compilation group'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - linux
+          - windows
+          - darwin
+          - bsd
+          - android
+          - wasm
+      zig_optimize:
+        description: 'Zig compiler optimization mode for NizamEngine'
+        required: false
+        default: 'ReleaseSmall'
+        type: choice
+        options:
+          - ReleaseSmall
+          - ReleaseFast
+          - ReleaseSafe
+      build_android:
+        description: 'Build Android Release APK & AAB via Gradle'
+        required: false
+        default: true
+        type: boolean
+      run_tests:
+        description: 'Run unit tests, TypeScript lint, and emulator header auto-tests'
+        required: false
+        default: true
+        type: boolean
+      publish_release:
+        description: 'Publish GitHub Release with all multiplatform artifacts'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  PYTHON_VERSION: '3.12'
+  JAVA_VERSION: '21'
+  ZIG_VERSION: '0.13.0'
 
 jobs:
-  build-release:
-    name: Build Multiplatform Release Artifacts
+  # ============================================================================
+  # 1. MULTI-OS WEB (VITE + REACT) & CHIMERA JS SDK MATRIX (LINUX, WINDOWS, MAC)
+  # ============================================================================
+  web-sdk-multi-os:
+    name: Web & Chimera SDK (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Check OS Filter
+        id: filter
+        shell: bash
+        run: |
+          FILTER="${{ github.event.inputs.os_targets || 'all' }}"
+          RUN="true"
+          if [ "$FILTER" = "linux-only" ] && [ "${{ matrix.os }}" != "ubuntu-latest" ]; then RUN="false"; fi
+          if [ "$FILTER" = "windows-only" ] && [ "${{ matrix.os }}" != "windows-latest" ]; then RUN="false"; fi
+          if [ "$FILTER" = "macos-only" ] && [ "${{ matrix.os }}" != "macos-latest" ]; then RUN="false"; fi
+          echo "should_run=$RUN" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout Code
+        if: steps.filter.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        if: steps.filter.outputs.should_run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        if: steps.filter.outputs.should_run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache npm dependencies
+        if: steps.filter.outputs.should_run == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install Chimera Stack Dependencies
+        if: steps.filter.outputs.should_run == 'true'
+        shell: bash
+        run: npm install --no-audit --no-fund
+
+      - name: Run TypeScript Typecheck & Package Smoke Tests
+        if: steps.filter.outputs.should_run == 'true' && (github.event.inputs.run_tests != 'false')
+        shell: bash
+        run: |
+          npm run lint
+          node -e "
+            const iso = require('./packages/iso-builder');
+            const vox = require('./packages/voxel-mesh');
+            const img = iso.createISO9660Image('NUSA_TEST', 'PLAYSTATION', [], 65536);
+            if (!img.includes('CD001')) throw new Error('ISO-9600 PVD validation failed');
+            const mesh = vox.greedyMesh3D([{x:0,y:0,z:0,color:1}]);
+            if (mesh.triangles !== 12) throw new Error('GreedyMesh3D validation failed');
+            console.log('[✓] Chimera local SDK packages verified on ${{ matrix.os }}');
+          "
+
+      - name: Build Production Web Bundle (Vite)
+        if: steps.filter.outputs.should_run == 'true'
+        shell: bash
+        run: npm run build
+
+      - name: Package Web Dist & Desktop Smoke Target
+        if: steps.filter.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          mkdir -p export
+          PY_BIN=$(command -v python3 || command -v python)
+          "$PY_BIN" -c "import os, zipfile, pathlib; os.makedirs('export', exist_ok=True); out = pathlib.Path('export/NUSA_WEB_VITE_${{ matrix.os }}.zip'); z = zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED); [z.write(p, p.relative_to('dist')) for p in pathlib.Path('dist').rglob('*') if p.is_file()]; z.close(); print(f'[✓] Packaged {out} ({out.stat().st_size} bytes)')"
+          node build_v6.js --desktop --web
+
+      - name: Upload Web & OS Build Artifacts
+        if: steps.filter.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-sdk-${{ matrix.os }}
+          path: |
+            export/NUSA_WEB_VITE_${{ matrix.os }}.zip
+          retention-days: 14
+
+  # ============================================================================
+  # 2. ALL CONSOLES & CHIMERA v6.0 MATRIX (PSX, PS2, NDS, PSP, VITA, SWITCH, PS3, RETROARCH)
+  # ============================================================================
+  consoles-chimera-matrix:
+    name: Console Target (${{ matrix.target }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - psx
+          - ps2
+          - nds
+          - psp
+          - vita
+          - switch
+          - ps3
+          - retroarch
+          - windows
+          - mac
+          - linux
+          - mobile
+          - ios
+          - web
+          - nizam
 
-    permissions:
-      contents: write
+    steps:
+      - name: Check Console Target Filter
+        id: filter
+        run: |
+          INPUT="${{ github.event.inputs.console_targets || 'all' }}"
+          INPUT_NORM=$(echo "$INPUT" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+          if [ "$INPUT_NORM" = "all" ] || echo ",$INPUT_NORM," | grep -q ",${{ matrix.target }},"; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
 
+      - name: Checkout Code
+        if: steps.filter.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        if: steps.filter.outputs.should_run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        if: steps.filter.outputs.should_run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Build & Optimize Console Target (${{ matrix.target }})
+        if: steps.filter.outputs.should_run == 'true'
+        run: |
+          node build_v6.js --${{ matrix.target }}
+
+      - name: Validate Container Header & Magic Bytes
+        if: steps.filter.outputs.should_run == 'true' && (github.event.inputs.run_tests != 'false')
+        run: |
+          python3 auto_test.py --targets ${{ matrix.target }}
+
+      - name: Generate Checksums
+        if: steps.filter.outputs.should_run == 'true'
+        run: |
+          cd export
+          ls -la
+          sha256sum NUSA_* NIZAM_* 2>/dev/null > "SHA256SUM_${{ matrix.target }}.txt" || true
+
+      - name: Upload Console Artifact (${{ matrix.target }})
+        if: steps.filter.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: console-${{ matrix.target }}
+          path: |
+            export/NUSA_*
+            export/NIZAM_*
+            export/SHA256SUM_${{ matrix.target }}.txt
+          retention-days: 14
+
+  # ============================================================================
+  # 3. ALL KERNELS & ARCHITECTURES CROSS-COMPILE MATRIX (NIZAM ENGINE VIA ZIG)
+  # ============================================================================
+  nizam-all-kernels-matrix:
+    name: Kernel Target (${{ matrix.label }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux Kernels (x86_64, ARM64, ARMv7, RISC-V 64; GNU & Musl)
+          - label: linux-x86_64-gnu
+            group: linux
+            runner: ubuntu-latest
+            zig_target: x86_64-linux-gnu
+            ext: ''
+          - label: linux-x86_64-musl
+            group: linux
+            runner: ubuntu-latest
+            zig_target: x86_64-linux-musl
+            ext: ''
+          - label: linux-aarch64-gnu
+            group: linux
+            runner: ubuntu-latest
+            zig_target: aarch64-linux-gnu
+            ext: ''
+          - label: linux-aarch64-musl
+            group: linux
+            runner: ubuntu-latest
+            zig_target: aarch64-linux-musl
+            ext: ''
+          - label: linux-armhf-gnu
+            group: linux
+            runner: ubuntu-latest
+            zig_target: arm-linux-gnueabihf
+            ext: ''
+          - label: linux-riscv64-gnu
+            group: linux
+            runner: ubuntu-latest
+            zig_target: riscv64-linux-gnu
+            ext: ''
+          # Windows NT Kernel (x64 & ARM64)
+          - label: windows-x86_64
+            group: windows
+            runner: windows-latest
+            zig_target: x86_64-windows-gnu
+            ext: '.exe'
+          - label: windows-aarch64
+            group: windows
+            runner: ubuntu-latest
+            zig_target: aarch64-windows-gnu
+            ext: '.exe'
+          # Apple XNU/Darwin Kernel (Apple Silicon & Intel)
+          - label: macos-aarch64
+            group: darwin
+            runner: macos-latest
+            zig_target: aarch64-macos
+            ext: ''
+          - label: macos-x86_64
+            group: darwin
+            runner: ubuntu-latest
+            zig_target: x86_64-macos
+            ext: ''
+          # BSD Unix Kernels (FreeBSD, NetBSD, OpenBSD)
+          - label: freebsd-x86_64
+            group: bsd
+            runner: ubuntu-latest
+            zig_target: x86_64-freebsd
+            ext: ''
+          - label: freebsd-aarch64
+            group: bsd
+            runner: ubuntu-latest
+            zig_target: aarch64-freebsd
+            ext: ''
+          - label: netbsd-x86_64
+            group: bsd
+            runner: ubuntu-latest
+            zig_target: x86_64-netbsd
+            ext: ''
+          - label: openbsd-x86_64
+            group: bsd
+            runner: ubuntu-latest
+            zig_target: x86_64-openbsd
+            ext: ''
+          # Android Bionic Linux Kernel (Itel A70 ARM64, ARMv7, x86_64)
+          - label: android-aarch64
+            group: android
+            runner: ubuntu-latest
+            zig_target: aarch64-linux-android
+            ext: ''
+          - label: android-armv7a
+            group: android
+            runner: ubuntu-latest
+            zig_target: arm-linux-androideabi
+            ext: ''
+          - label: android-x86_64
+            group: android
+            runner: ubuntu-latest
+            zig_target: x86_64-linux-android
+            ext: ''
+          # WebAssembly WASI Kernel
+          - label: wasm32-wasi
+            group: wasm
+            runner: ubuntu-latest
+            zig_target: wasm32-wasi
+            ext: '.wasm'
+
+    steps:
+      - name: Check Kernel Filter
+        id: filter
+        shell: bash
+        run: |
+          GROUP="${{ github.event.inputs.kernel_targets || 'all' }}"
+          if [ "$GROUP" = "all" ] || [ "$GROUP" = "${{ matrix.group }}" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout Code
+        if: steps.filter.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Zig ${{ env.ZIG_VERSION }}
+        if: steps.filter.outputs.should_run == 'true'
+        uses: mlugg/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Cross-Compile NizamEngine (${{ matrix.zig_target }})
+        if: steps.filter.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          OPT="${{ github.event.inputs.zig_optimize || 'ReleaseSmall' }}"
+          cd NizamEngine
+          zig build -Dtarget=${{ matrix.zig_target }} -Doptimize="$OPT" -Denable-raylib=false
+          cd ..
+          mkdir -p export/kernels
+          BIN_SRC=$(find NizamEngine/zig-out/bin -type f | head -n 1)
+          if [ -z "$BIN_SRC" ]; then
+            echo "No compiled NizamEngine binary found!"
+            exit 1
+          fi
+          OUT_NAME="NizamGame-${{ matrix.label }}${{ matrix.ext }}"
+          cp "$BIN_SRC" "export/kernels/$OUT_NAME"
+          ls -lh "export/kernels/$OUT_NAME"
+
+      - name: Smoke Test Native Host Binary
+        if: steps.filter.outputs.should_run == 'true' && (matrix.label == 'linux-x86_64-gnu' || matrix.label == 'windows-x86_64' || matrix.label == 'macos-aarch64')
+        shell: bash
+        run: |
+          "./export/kernels/NizamGame-${{ matrix.label }}${{ matrix.ext }}"
+
+      - name: Upload Kernel Binary (${{ matrix.label }})
+        if: steps.filter.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-${{ matrix.label }}
+          path: export/kernels/*
+          retention-days: 14
+
+  # ============================================================================
+  # 4. ANDROID RELEASE APK & APP BUNDLE (ITEL A70 / UNIVERSAL ANDROID)
+  # ============================================================================
+  android-apk-release:
+    name: Android Release APK & AAB (Gradle)
+    if: github.event.inputs.build_android != 'false'
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
-
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Install Chimera Stack Dependencies
+      - name: Ensure Keystore & Gradlew Permissions
         run: |
-          npm install --no-audit --no-fund
+          chmod +x gradlew
+          if [ ! -f debug.keystore ]; then
+            keytool -genkey -v -keystore debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Release,O=SectIdle,C=ID"
+          fi
 
-      - name: Build All Console, Mobile, Web, Desktop & iOS Artifacts
+      - name: Run Android Unit Tests
+        if: github.event.inputs.run_tests != 'false'
+        run: ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Build Optimized Release APK & AAB
+        run: ./gradlew assembleRelease bundleRelease --no-daemon
+
+      - name: Export & Verify Android Artifacts
         run: |
-          node build_v6.js --all
+          mkdir -p export
+          APK_FILE=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          AAB_FILE=$(find app/build/outputs/bundle/release -name "*.aab" | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "Error: Release APK not produced!"
+            exit 1
+          fi
+          cp "$APK_FILE" export/NUSA_MOBILE.apk
+          cp "$APK_FILE" export/SECT_IDLE_ITEL_A70_RELEASE.apk
+          unzip -t export/NUSA_MOBILE.apk > /dev/null
+          if [ -n "$AAB_FILE" ]; then
+            cp "$AAB_FILE" export/SECT_IDLE_RELEASE.aab
+          fi
+          ls -lh export/*.apk export/*.aab 2>/dev/null || true
 
-      - name: Create Debug Keystore for Release Fallback
-        run: |
-          keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-
-      - name: Grant Execute Permission to Gradlew
-        run: chmod +x gradlew
-
-      - name: Build Mobile Android Release APK
-        run: ./gradlew assembleRelease --no-daemon --no-configuration-cache
-
-      - name: Copy Release APK to Export
-        run: |
-          cp app/build/outputs/apk/release/app-release.apk export/NUSA_MOBILE.apk || true
-          cp app/build/outputs/apk/release/*.apk export/SECT_IDLE_ITEL_A70_RELEASE.apk || true
-
-      - name: Upload Build Artifacts (Mobile, Web, Desktop, Consoles)
+      - name: Upload Android Release Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: nusa-legends-multiplatform-builds
+          name: android-release-package
           path: |
-            export/*.apk
-            export/*.ipa
-            export/*.zip
-            export/*.ISO
-            export/*.NDS
-            export/*.VPK
-            export/*.NSP
-            export/*.PKG
-            export/*.BIN
-            export/*.exe
-            export/*.dmg
-            export/*.AppImage
-            export/*.so
+            export/NUSA_MOBILE.apk
+            export/SECT_IDLE_ITEL_A70_RELEASE.apk
+            export/SECT_IDLE_RELEASE.aab
+          retention-days: 14
 
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+  # ============================================================================
+  # 5. UNIFIED MULTIPLATFORM AGGREGATOR & GITHUB RELEASE PUBLISHER
+  # ============================================================================
+  unified-release:
+    name: Unified Multiplatform Bundle & Release
+    needs:
+      - web-sdk-multi-os
+      - consoles-chimera-matrix
+      - nizam-all-kernels-matrix
+      - android-apk-release
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download All Multiplatform Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist-all
+
+      - name: Flatten Release Bundle & Generate Checksums
+        run: |
+          mkdir -p release-bundle/kernels
+          find dist-all -maxdepth 3 -type f -not -path "*/kernel-*/*" -not -name "SHA256SUM_*" -exec cp -n {} release-bundle/ \;
+          find dist-all -type f -path "*/kernel-*/*" -exec cp -n {} release-bundle/kernels/ \;
+          if [ -n "$(ls -A release-bundle/kernels 2>/dev/null)" ]; then
+            (cd release-bundle/kernels && tar -czf ../NIZAM_ENGINE_ALL_KERNELS.tar.gz .)
+          fi
+          rm -rf release-bundle/kernels
+          (cd release-bundle && sha256sum * > SHA256SUMS.txt)
+
+          echo "### Chimera v6.0 Multiplatform Build Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Artifact | Size |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          for f in release-bundle/*; do
+            fname=$(basename "$f")
+            fsize=$(du -h "$f" | cut -f1)
+            echo "| \`$fname\` | $fsize |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Upload Combined Multiplatform Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: nusa-legends-all-platforms-bundle
+          path: release-bundle/*
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.publish_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            export/NUSA_MOBILE.apk
-            export/NUSA_IOS_PACKAGE.ipa
-            export/NUSA_WEB_GAME.zip
-            export/NUSA_WINDOWS.exe
-            export/NUSA_MAC.dmg
-            export/NUSA_LINUX.AppImage
-            export/NUSA_PSX.BIN
-            export/NUSA_PS2.ISO
-            export/NUSA_NDS.NDS
-            export/NUSA_PSP.ISO
-            export/NUSA_VITA.VPK
-            export/NUSA_SWITCH.NSP
-            export/NUSA_PS3.PKG
-            export/NUSA_RETROARCH.so
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('chimera-build-{0}', github.run_number) }}
+          files: release-bundle/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

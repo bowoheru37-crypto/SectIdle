@@ -1,18 +1,20 @@
 import React from 'react';
 import { TechNode } from '../types/game';
 import { soundManager } from '../utils/audio';
-import { BookOpen, CheckCircle, Sparkles, Lock, ArrowRight } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { ResolvedPerformanceTier, triggerCelebration } from '../core/sectEngine';
+import { BookOpen, CheckCircle, Sparkles, Lock } from 'lucide-react';
 
 interface TechTreeProps {
   techTree: TechNode[];
   sectExp: number;
+  perfTier?: ResolvedPerformanceTier;
   onResearchTech: (tech: TechNode) => void;
 }
 
 export const TechTree: React.FC<TechTreeProps> = ({
   techTree,
   sectExp,
+  perfTier = 'balanced',
   onResearchTech,
 }) => {
   const eraNames = [
@@ -27,7 +29,6 @@ export const TechTree: React.FC<TechTreeProps> = ({
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="font-serif-title font-bold text-slate-100 text-lg flex items-center gap-2">
@@ -47,13 +48,11 @@ export const TechTree: React.FC<TechTreeProps> = ({
         </div>
       </div>
 
-      {/* Available Sect Exp */}
       <div className="bg-slate-950 border border-slate-800 px-5 py-3 rounded-xl flex items-center justify-between text-xs font-mono">
         <span className="text-slate-400">Available Sect Enlightenment (EXP):</span>
         <span className="text-amber-400 font-bold text-sm">📜 {sectExp} EXP</span>
       </div>
 
-      {/* Tech Nodes List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {techTree.map(tech => {
           const canAfford = sectExp >= tech.costExp && !tech.isResearched;
@@ -98,10 +97,11 @@ export const TechTree: React.FC<TechTreeProps> = ({
                 </div>
               ) : isUnlockedEra ? (
                 <button
+                  type="button"
                   onClick={() => {
                     if (canAfford) {
                       soundManager.playBreakthrough();
-                      confetti({ particleCount: 50, spread: 50 });
+                      triggerCelebration(perfTier, { particleCount: 50, spread: 50 });
                       onResearchTech(tech);
                     }
                   }}

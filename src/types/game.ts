@@ -54,6 +54,15 @@ export interface Equipment {
   rarity: number;
 }
 
+export type DiscipleBondType = 'sect_siblings' | 'master_disciple';
+
+export interface DiscipleBond {
+  partnerId: string;
+  type: DiscipleBondType;
+  level: number;
+  affinity: number;
+}
+
 export interface Disciple {
   id: string;
   name: string;
@@ -96,6 +105,7 @@ export interface Disciple {
   accuracy: number;
   hobby: number;
   fairy?: Fairy;
+  bonds?: DiscipleBond[];
   weapon?: Equipment;
   armor?: Equipment;
   accessory?: Equipment;
@@ -177,6 +187,27 @@ export interface Quest {
   target: number;
   completed: boolean;
   type: number;
+}
+
+export type DailyMissionKind =
+  | 'work_ticks'
+  | 'cultivate_qi'
+  | 'build_or_upgrade'
+  | 'win_battle'
+  | 'alchemy_craft';
+
+export type DailyMissionRewardType = 'spiritStones' | 'sectExp';
+
+export interface DailyMission {
+  id: string;
+  title: string;
+  description: string;
+  kind: DailyMissionKind;
+  progress: number;
+  target: number;
+  rewardType: DailyMissionRewardType;
+  rewardAmount: number;
+  claimed: boolean;
 }
 
 export interface SectEventLog {

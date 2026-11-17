@@ -185,4 +185,12 @@ public final class IdleSectDataLoader {
             disciples.add(zk);
         }
     }
+
+    public void syncToSectData() {
+        SectData target = SectData.getInstance();
+        target.sectName = sectName;
+        target.spiritStones = ss;
+        target.jade = jade;
+        target.essence = essence;
+    }
 }

@@ -123,13 +123,41 @@ public final class Disciple {
     }
 
     public void recalculateStats() {
-        maxHp = BASE_HP + vit * HP_PER_VIT + str * HP_PER_STR + realm * HP_PER_REALM + (level * 25);
+        recomputeCombatStats(true, true);
+    }
+
+    private void recomputeCombatStats(boolean scaleByLevel, boolean includeEquipment) {
+        int lvlHp = scaleByLevel ? (level * 25) : 0;
+        int lvlMp = scaleByLevel ? (level * 15) : 0;
+        int lvlAtk = scaleByLevel ? (level * 5) : 0;
+        int lvlDef = scaleByLevel ? (level * 3) : 0;
+        int lvlSpd = scaleByLevel ? (level * 2) : 0;
+
+        int eqAtk = (includeEquipment && weapon != null) ? weapon.atk : 0;
+        int eqDef = (includeEquipment && armor != null) ? armor.def : 0;
+        int eqSpd = (includeEquipment && accessory != null) ? accessory.spd : 0;
+        int eqCrit = (includeEquipment && artifact != null) ? artifact.crit : 0;
+
+        maxHp = BASE_HP + vit * HP_PER_VIT + str * HP_PER_STR + realm * HP_PER_REALM + lvlHp;
+        maxMp = BASE_MP + intel * MP_PER_INT + wis * MP_PER_WIS + realm * MP_PER_REALM + lvlMp;
+        atk = str * ATK_PER_STR + agi * ATK_PER_AGI + (realm * 15) + lvlAtk + eqAtk;
+        def = vit * DEF_PER_VIT + str * DEF_PER_STR + (realm * 10) + lvlDef + eqDef;
+        spd = agi * SPD_PER_AGI + (realm * 5) + lvlSpd + eqSpd;
+        critRate = lck * CRIT_PER_LCK + eqCrit;
+        critDmg = BASE_CRIT_DMG + str;
+        dodge = agi * DODGE_PER_AGI + lck * DODGE_PER_LCK;
+        accuracy = wis * ACC_PER_WIS + agi * ACC_PER_AGI;
+
+        stats[STAT_STR] = str;
+        stats[STAT_AGI] = agi;
+        stats[STAT_INT] = intel;
+        stats[STAT_LCK] = lck;
+        stats[STAT_VIT] = vit;
+        stats[STAT_WIS] = wis;
+        stats[STAT_CHA] = cha;
+
         if (hp > maxHp || hp <= 0) hp = maxHp;
-        maxMp = BASE_MP + intel * MP_PER_INT + wis * MP_PER_WIS + realm * MP_PER_REALM + (level * 15);
         if (mp > maxMp || mp <= 0) mp = maxMp;
-        atk = str * ATK_PER_STR + agi * ATK_PER_AGI + (realm * 15) + (level * 5);
-        def = vit * DEF_PER_VIT + str * DEF_PER_STR + (realm * 10) + (level * 3);
-        spd = agi * SPD_PER_AGI + (realm * 5) + (level * 2);
     }
 
     // ====== FAIRY ======
@@ -230,18 +258,7 @@ public final class Disciple {
     }
 
     public void recalcCombat() {
-        maxHp = BASE_HP + vit * HP_PER_VIT + str * HP_PER_STR + realm * HP_PER_REALM;
-        maxMp = BASE_MP + intel * MP_PER_INT + wis * MP_PER_WIS + realm * MP_PER_REALM;
-        atk = str * ATK_PER_STR + agi * ATK_PER_AGI + (weapon != null ? weapon.atk : 0);
-        def = vit * DEF_PER_VIT + str * DEF_PER_STR + (armor != null ? armor.def : 0);
-        spd = agi * SPD_PER_AGI + (accessory != null ? accessory.spd : 0);
-        critRate = lck * CRIT_PER_LCK + (artifact != null ? artifact.crit : 0);
-        critDmg = BASE_CRIT_DMG + str;
-        dodge = agi * DODGE_PER_AGI + lck * DODGE_PER_LCK;
-        accuracy = wis * ACC_PER_WIS + agi * ACC_PER_AGI;
-        hp = Math.min(hp, maxHp);
-        mp = Math.min(mp, maxMp);
-        if (hp <= 0) hp = 1;
+        recomputeCombatStats(false, true);
     }
 
     public String getRealmDisplay() {
@@ -263,6 +280,15 @@ public final class Disciple {
     }
 
     public void updateEfficiency() {
+        updateEfficiencyWithBonds(0);
+    }
+
+    public void updateEfficiency(ArrayList<Disciple> allDisciples) {
+        int bondBonus = com.sect.idle.gameplay.BehaviorEngine.getSharedTaskBondBonus(this, allDisciples);
+        updateEfficiencyWithBonds(bondBonus);
+    }
+
+    private void updateEfficiencyWithBonds(int bondBonus) {
         int base = 50;
         switch (currentTask) {
             case GameConfig.TASK_FARMING: base += str / 2 + vit / 4; break;
@@ -283,7 +309,8 @@ public final class Disciple {
         if (stress > STRESS_THRESHOLD_HIGH) base -= 15;
         if (mood < MOOD_THRESHOLD_LOW) base -= 10;
         if (fairy != null) base += fairy.efficiencyBonus;
-        taskEfficiency = GameConfig.clamp(base, MIN_EFFICIENCY, MAX_EFFICIENCY);
+        base += bondBonus;
+        taskEfficiency = GameConfig.clamp(base, MIN_EFFICIENCY, MAX_EFFICIENCY + 15);
     }
 
     private int getPersonalityBonus() {

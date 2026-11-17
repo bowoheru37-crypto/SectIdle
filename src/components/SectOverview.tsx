@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Building, Disciple } from '../types/game';
+import { Building, DailyMission, Disciple } from '../types/game';
 import { soundManager } from '../utils/audio';
 import {
   Sparkles,
-  ArrowUpCircle,
   Hammer,
   Pickaxe,
   BookOpen,
@@ -12,26 +11,37 @@ import {
   Swords,
   Flame,
   Castle,
-  X,
   Play,
 } from 'lucide-react';
+import { ModalShell } from './ModalShell';
+import { DailyMissions } from './DailyMissions';
 
 interface SectOverviewProps {
+  sectName?: string;
   buildings: Building[];
   disciples: Disciple[];
   spiritStones: number;
+  dailyMissions: DailyMission[];
+  dailyMissionDayKey: string;
   onUpgradeBuilding: (buildingId: number) => void;
   onBuildBuilding: (buildingId: number) => void;
   onBuildingAction: (building: Building) => void;
+  onClaimDailyMission: (missionId: string) => void;
+  onRerollDailyMissions: () => void;
 }
 
 export const SectOverview: React.FC<SectOverviewProps> = ({
+  sectName = 'Cloud Mist Mountain',
   buildings,
   disciples,
   spiritStones,
+  dailyMissions,
+  dailyMissionDayKey,
   onUpgradeBuilding,
   onBuildBuilding,
   onBuildingAction,
+  onClaimDailyMission,
+  onRerollDailyMissions,
 }) => {
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
 
@@ -51,84 +61,74 @@ export const SectOverview: React.FC<SectOverviewProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Visual Sect Ground Layout (Xianxia Mountain Domain) */}
-      <div className="relative w-full h-[480px] bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950/40 border border-slate-800 rounded-3xl overflow-hidden p-6 shadow-2xl flex flex-col justify-between">
-        {/* Background Mountain silhouettes & celestial clouds */}
+      <div className="relative w-full min-h-[460px] bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950/40 border border-slate-800 rounded-3xl overflow-hidden p-4 sm:p-6 shadow-2xl flex flex-col justify-between gap-4">
         <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:24px_24px]" />
         <div className="absolute top-10 left-1/2 -translate-x-1/2 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Sect Banner Top */}
-        <div className="relative z-10 flex items-center justify-between">
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/80 border border-slate-800 rounded-xl backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <Castle className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />
             <span className="font-serif-title font-bold text-xs text-amber-300">
-              Cloud Mist Mountain • Spiritual Domain
+              {sectName} • Spiritual Domain
             </span>
           </div>
 
           <div className="text-xs text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800">
-            Click buildings to upgrade, harvest, or refine!
+            Select buildings to upgrade, harvest, or refine
           </div>
         </div>
 
-        {/* Interactive Buildings Array Layout */}
         <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 my-auto">
-          {buildings.map(b => {
-            const canAfford = spiritStones >= b.upgradeCost;
-            return (
-              <div
-                key={b.id}
-                onClick={() => {
-                  soundManager.playClick();
-                  setSelectedBuilding(b);
-                }}
-                className={`relative group cursor-pointer p-4 rounded-2xl border transition-all duration-300 backdrop-blur-md flex flex-col justify-between h-36 ${
-                  b.isBuilt
-                    ? 'bg-slate-900/80 border-slate-700/80 hover:border-amber-500/80 hover:bg-slate-800/90 shadow-lg'
-                    : 'bg-slate-950/60 border-dashed border-slate-800 hover:border-slate-600 opacity-70 hover:opacity-100'
-                }`}
-              >
-                {/* Header icon + level tag */}
-                <div className="flex items-start justify-between">
-                  <div className="p-2.5 bg-slate-950/90 border border-slate-800 rounded-xl group-hover:scale-105 transition-transform">
-                    {getBuildingIcon(b.icon)}
-                  </div>
-                  {b.isBuilt ? (
-                    <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-mono font-bold rounded-full">
-                      Lv.{b.level}
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 bg-slate-800 text-slate-400 text-[10px] font-mono rounded-full">
-                      Unbuilt
-                    </span>
-                  )}
+          {buildings.map(b => (
+            <button
+              key={b.id}
+              type="button"
+              onClick={() => {
+                soundManager.playClick();
+                setSelectedBuilding(b);
+              }}
+              className={`relative group text-left cursor-pointer p-4 rounded-2xl border transition-all duration-200 backdrop-blur-md flex flex-col justify-between h-36 ${
+                b.isBuilt
+                  ? 'bg-slate-900/80 border-slate-700/80 hover:border-amber-500/80 hover:bg-slate-800/90 shadow-lg'
+                  : 'bg-slate-950/60 border-dashed border-slate-800 hover:border-slate-600 opacity-75 hover:opacity-100'
+              }`}
+            >
+              <div className="flex items-start justify-between w-full">
+                <div className="p-2.5 bg-slate-950/90 border border-slate-800 rounded-xl group-hover:scale-105 transition-transform">
+                  {getBuildingIcon(b.icon)}
                 </div>
-
-                {/* Building name & daily income */}
-                <div>
-                  <h4 className="font-serif-title font-bold text-xs text-slate-100 group-hover:text-amber-300 transition-colors">
-                    {b.name}
-                  </h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
-                    {b.isBuilt ? `+${b.level * 25} SS/day • ${b.workers} Disciples` : `Cost: ${b.cost} SS`}
-                  </p>
-                </div>
-
-                {/* Action button hover hint */}
-                <div className="text-[10px] font-bold text-cyan-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Sparkles className="w-3 h-3" /> Inspect & Manage
-                </div>
+                {b.isBuilt ? (
+                  <span className="text-amber-300 text-[11px] font-mono font-bold tabular-nums">
+                    Lv.{b.level}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 text-[11px] font-mono">
+                    Unbuilt
+                  </span>
+                )}
               </div>
-            );
-          })}
+
+              <div>
+                <h4 className="font-serif-title font-bold text-xs text-slate-100 group-hover:text-amber-300 transition-colors">
+                  {b.name}
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-0.5 tabular-nums">
+                  {b.isBuilt ? `+${b.level * 25} SS/day • ${b.workers} Disciples` : `Cost: ${b.cost} SS`}
+                </p>
+              </div>
+
+              <div className="text-[10px] font-bold text-cyan-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+                <Sparkles className="w-3 h-3" /> Inspect & Manage
+              </div>
+            </button>
+          ))}
         </div>
 
-        {/* Wandering Disciples Presence Bar */}
-        <div className="relative z-10 flex items-center justify-between text-xs bg-slate-950/80 border border-slate-800/80 px-4 py-2 rounded-2xl backdrop-blur-md">
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 text-xs bg-slate-950/80 border border-slate-800/80 px-4 py-2 rounded-2xl backdrop-blur-md">
           <div className="flex items-center gap-2 text-slate-300">
             <span>Cultivating In Domain:</span>
             <div className="flex -space-x-1 overflow-hidden">
-              {disciples.slice(0, 6).map((d, i) => (
+              {disciples.slice(0, 6).map(d => (
                 <div
                   key={d.id}
                   title={`${d.name} (${d.isMale ? 'Male' : 'Female'})`}
@@ -138,42 +138,45 @@ export const SectOverview: React.FC<SectOverviewProps> = ({
                 </div>
               ))}
             </div>
-            <span className="text-[11px] text-slate-500">+{disciples.length} disciples</span>
+            <span className="text-[11px] text-slate-400 tabular-nums">{disciples.length} disciples</span>
           </div>
 
-          <div className="text-[11px] text-emerald-400 font-mono">
+          <div className="text-[11px] text-emerald-400 font-mono tabular-nums">
             Mountain Qi Flow: Normal (+100%)
           </div>
         </div>
       </div>
 
-      {/* Building Details & Upgrade Modal */}
-      {selectedBuilding && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-          <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-            <div className="flex items-start justify-between border-b border-slate-800 pb-3 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl">
-                  {getBuildingIcon(selectedBuilding.icon)}
-                </div>
-                <div>
-                  <h3 className="font-serif-title font-bold text-slate-100 text-base">
-                    {selectedBuilding.name}
-                  </h3>
-                  <div className="text-xs text-slate-400">
-                    {selectedBuilding.isBuilt ? `Level ${selectedBuilding.level} Pavilion` : 'Unconstructed Lot'}
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedBuilding(null)}
-                className="text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <DailyMissions
+        missions={dailyMissions}
+        dayKey={dailyMissionDayKey}
+        spiritStones={spiritStones}
+        onClaimMission={onClaimDailyMission}
+        onRerollMissions={onRerollDailyMissions}
+      />
 
-            <div className="space-y-3 mb-5 text-xs text-slate-300">
+      <ModalShell
+        isOpen={Boolean(selectedBuilding)}
+        onClose={() => setSelectedBuilding(null)}
+        maxWidth="md"
+        bodyClassName="p-6 space-y-4"
+        icon={
+          selectedBuilding && (
+            <div className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl">
+              {getBuildingIcon(selectedBuilding.icon)}
+            </div>
+          )
+        }
+        title={selectedBuilding?.name ?? ''}
+        subtitle={
+          selectedBuilding?.isBuilt
+            ? `Level ${selectedBuilding.level} Pavilion`
+            : 'Unconstructed Lot'
+        }
+      >
+        {selectedBuilding && (
+          <>
+            <div className="space-y-3 text-xs text-slate-300">
               <div className="flex justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800 font-mono">
                 <span>Daily Revenue:</span>
                 <strong className="text-amber-400">
@@ -182,7 +185,9 @@ export const SectOverview: React.FC<SectOverviewProps> = ({
               </div>
               <div className="flex justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800 font-mono">
                 <span>Assigned Cultivators:</span>
-                <strong>{selectedBuilding.workers} / {selectedBuilding.maxWorkers}</strong>
+                <strong>
+                  {selectedBuilding.workers} / {selectedBuilding.maxWorkers}
+                </strong>
               </div>
               <div className="flex justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800 font-mono">
                 <span>Upgrade Cost:</span>
@@ -190,23 +195,27 @@ export const SectOverview: React.FC<SectOverviewProps> = ({
               </div>
             </div>
 
-            {/* Special Action Button for Gardens / Alchemy / Arena */}
-            {(selectedBuilding.name.includes('Garden') || selectedBuilding.name.includes('Alchemy')) && selectedBuilding.isBuilt && (
-              <button
-                onClick={() => {
-                  setSelectedBuilding(null);
-                  onBuildingAction(selectedBuilding);
-                }}
-                className="w-full mb-3 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition"
-              >
-                <Play className="w-3.5 h-3.5" />
-                {selectedBuilding.name.includes('Garden') ? 'Play Herb Slash Mini-Game' : 'Open Cauldron Concoction'}
-              </button>
-            )}
+            {(selectedBuilding.name.includes('Garden') || selectedBuilding.name.includes('Alchemy')) &&
+              selectedBuilding.isBuilt && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = selectedBuilding;
+                    setSelectedBuilding(null);
+                    onBuildingAction(target);
+                  }}
+                  className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  {selectedBuilding.name.includes('Garden')
+                    ? 'Play Herb Slash Mini-Game'
+                    : 'Open Cauldron Concoction'}
+                </button>
+              )}
 
-            {/* Build or Upgrade Button */}
             {selectedBuilding.isBuilt ? (
               <button
+                type="button"
                 onClick={() => {
                   soundManager.playBreakthrough();
                   onUpgradeBuilding(selectedBuilding.id);
@@ -223,6 +232,7 @@ export const SectOverview: React.FC<SectOverviewProps> = ({
               </button>
             ) : (
               <button
+                type="button"
                 onClick={() => {
                   soundManager.playBreakthrough();
                   onBuildBuilding(selectedBuilding.id);
@@ -238,9 +248,9 @@ export const SectOverview: React.FC<SectOverviewProps> = ({
                 Erect Pavilion ({selectedBuilding.cost} SS)
               </button>
             )}
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </ModalShell>
     </div>
   );
 };

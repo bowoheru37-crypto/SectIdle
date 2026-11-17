@@ -1,4 +1,4 @@
-name: Build & Optimize Release APK (itel A70 / Android Smartphones)
+name: Build & Optimize Release APK (Itel A70 / Universal Android)
 
 on:
   push:
@@ -10,10 +10,43 @@ on:
   schedule:
     - cron: '0 4 * * 0' # Weekly Sunday schedule
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Android build variant'
+        required: false
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+          - both
+      package_format:
+        description: 'Output package format'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - apk
+          - aab
+          - both
+      run_tests:
+        description: 'Run JVM unit tests before packaging'
+        required: false
+        default: true
+        type: boolean
+      run_lint:
+        description: 'Run Android lint verification'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-release-apk:
-    name: Build Fully Customized & Optimized Release APK
+    name: Build Customized & Optimized Android Package
     runs-on: ubuntu-latest
 
     permissions:
@@ -23,48 +56,90 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Create Release/Debug Keystore Fallback
+      - name: Ensure Signing Keystore & Gradlew Permissions
         run: |
+          chmod +x gradlew
           if [ ! -f debug.keystore ]; then
-            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=SectIdle,C=ID"
+            keytool -genkey -v -keystore debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Release,O=SectIdle,C=ID"
           fi
 
-      - name: Grant Execute Permission to Gradlew
-        run: chmod +x gradlew
-
       - name: Run Test Verification Suite
-        run: ./gradlew test --no-daemon
+        if: github.event.inputs.run_tests != 'false'
+        run: ./gradlew testDebugUnitTest --no-daemon
 
-      - name: Build Optimized Android Release APK
-        run: ./gradlew assembleRelease --no-daemon
+      - name: Run Android Lint
+        if: github.event.inputs.run_lint == 'true'
+        run: ./gradlew lintDebug --no-daemon
 
-      - name: Prepare Export Directory
+      - name: Build Requested Android Packages
+        run: |
+          BUILD_TYPE="${{ github.event.inputs.build_type || 'release' }}"
+          FORMAT="${{ github.event.inputs.package_format || 'both' }}"
+          TASKS=""
+
+          if [ "$BUILD_TYPE" = "release" ] || [ "$BUILD_TYPE" = "both" ]; then
+            if [ "$FORMAT" = "apk" ] || [ "$FORMAT" = "both" ]; then TASKS="$TASKS assembleRelease"; fi
+            if [ "$FORMAT" = "aab" ] || [ "$FORMAT" = "both" ]; then TASKS="$TASKS bundleRelease"; fi
+          fi
+          if [ "$BUILD_TYPE" = "debug" ] || [ "$BUILD_TYPE" = "both" ]; then
+            if [ "$FORMAT" = "apk" ] || [ "$FORMAT" = "both" ]; then TASKS="$TASKS assembleDebug"; fi
+          fi
+
+          echo "Executing Gradle tasks: $TASKS"
+          ./gradlew $TASKS --no-daemon
+
+      - name: Prepare, Verify & Checksum Export Directory
         run: |
           mkdir -p export
-          cp app/build/outputs/apk/release/*.apk export/SECT_IDLE_ITEL_A70_RELEASE.apk 2>/dev/null || true
+          REL_APK=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -n 1 || true)
+          DBG_APK=$(find app/build/outputs/apk/debug -name "*.apk" 2>/dev/null | head -n 1 || true)
+          REL_AAB=$(find app/build/outputs/bundle/release -name "*.aab" 2>/dev/null | head -n 1 || true)
 
-      - name: Upload Release APK Artifact
+          if [ -n "$REL_APK" ]; then
+            cp "$REL_APK" export/SECT_IDLE_ITEL_A70_RELEASE.apk
+            unzip -t export/SECT_IDLE_ITEL_A70_RELEASE.apk > /dev/null
+          fi
+          if [ -n "$DBG_APK" ]; then
+            cp "$DBG_APK" export/SECT_IDLE_DEBUG.apk
+            unzip -t export/SECT_IDLE_DEBUG.apk > /dev/null
+          fi
+          if [ -n "$REL_AAB" ]; then
+            cp "$REL_AAB" export/SECT_IDLE_RELEASE.aab
+          fi
+
+          if [ -z "$(ls -A export 2>/dev/null)" ]; then
+            echo "Error: No Android APK/AAB artifacts were generated!"
+            exit 1
+          fi
+
+          (cd export && sha256sum * > SHA256SUMS.txt)
+          echo "### Android Build Artifacts" >> "$GITHUB_STEP_SUMMARY"
+          ls -lh export/ >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Android Release Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sect-idle-itel-a70-release-apk
-          path: export/SECT_IDLE_ITEL_A70_RELEASE.apk
-          if-no-files-found: warn
+          name: sect-idle-android-packages
+          path: export/*
+          retention-days: 30
 
       - name: Publish GitHub Release (On Tag Push)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            export/SECT_IDLE_ITEL_A70_RELEASE.apk
+          files: export/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

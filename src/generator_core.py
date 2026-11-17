@@ -8,6 +8,7 @@ Optimized for Itel A70 (1GB RAM) & Multi-Console Compilation
 import os
 import sys
 import time
+import shutil
 import struct
 import zipfile
 import argparse
@@ -34,7 +35,7 @@ TARGET_PROFILES = {
     "linux": {"sdk": "GCC / Clang Linux", "ndk": "ELF AppImage", "max_polys": 256, "ext": "AppImage", "target_bytes": int(2.5 * 1024 * 1024)},
     "mobile": {"sdk": "Sketchware Pro + AIDE Pro", "ndk": "Android NDK r25b", "max_polys": 128, "ext": "apk", "target_bytes": 1024},
     "ios": {"sdk": "iOS Swift / Clang Toolchain", "ndk": "arm64 iOS Framework", "max_polys": 128, "ext": "ipa", "target_bytes": 2048},
-    "web": {"sdk": "Emscripten / HTML5 WebGL Engine", "ndk": "WebAssembly / JS", "max_polys": 128, "ext": "zip", "target_bytes": 4096},
+    "web": {"sdk": "Vite React Unified Engine / HTML5", "ndk": "WebAssembly / ESM", "max_polys": 128, "ext": "zip", "target_bytes": 4096},
 }
 
 
@@ -45,25 +46,42 @@ class ChimeraGeneratorCore:
         self.export_dir = self.repo_root / "export"
         self.sdk_dir = self.repo_root / "sdk"
         self.ensure_directories()
+        self.sync_shared_spec()
 
     def ensure_directories(self):
         self.assets_dir.mkdir(parents=True, exist_ok=True)
         self.export_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate_web_bundle(self):
-        """Generates HTML5 Web Game bundle."""
-        web_dir = self.export_dir / "web"
-        web_dir.mkdir(parents=True, exist_ok=True)
+    def sync_shared_spec(self):
+        """Syncs canonical /shared/sect_core_spec.json to Android assets."""
+        shared_spec = self.repo_root / "shared" / "sect_core_spec.json"
+        android_data_dir = self.repo_root / "app" / "src" / "main" / "assets" / "Data"
+        if shared_spec.exists() and android_data_dir.exists():
+            shutil.copy2(shared_spec, android_data_dir / "sect_core_spec.json")
 
-        html_file = web_dir / "index.html"
-        html_file.write_text("""<!DOCTYPE html>
+    def generate_web_bundle(self):
+        """Packages real Vite dist/ build when available, else fallback HTML5 shell + shared spec."""
+        zip_path = self.export_dir / "NUSA_WEB_GAME.zip"
+        dist_dir = self.repo_root / "dist"
+        shared_spec = self.repo_root / "shared" / "sect_core_spec.json"
+
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
+            if (dist_dir / "index.html").exists():
+                for file_path in sorted(dist_dir.rglob("*")):
+                    if file_path.is_file():
+                        z.write(file_path, arcname=str(file_path.relative_to(dist_dir)))
+            else:
+                web_dir = self.export_dir / "web"
+                web_dir.mkdir(parents=True, exist_ok=True)
+                html_file = web_dir / "index.html"
+                html_file.write_text("""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sect Idle / Nusa Legends 3D - Web Edition</title>
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; text-align: center; }
+        body { margin: 0; background: #070b14; color: #fff; font-family: system-ui, sans-serif; text-align: center; }
         canvas { width: 100vw; height: 100vh; display: block; }
     </style>
 </head>
@@ -72,21 +90,23 @@ class ChimeraGeneratorCore:
     <script src="game.js"></script>
 </body>
 </html>""")
+                js_file = web_dir / "game.js"
+                js_file.write_text('console.log("[✓] Chimera Unified Web Engine Fallback (run npm run build for full SPA)");')
+                z.write(html_file, arcname="index.html")
+                z.write(js_file, arcname="game.js")
 
-        js_file = web_dir / "game.js"
-        js_file.write_text("""// Nusa Legends HTML5 WebGL / Canvas Engine
-console.log("[✓] Chimera Web Engine v6.0 Initialized");
-const canvas = document.getElementById('gameCanvas');
-if (canvas) {
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#87CEEB';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-}""")
+            if shared_spec.exists():
+                z.write(shared_spec, arcname="shared/sect_core_spec.json")
 
-        zip_path = self.export_dir / "NUSA_WEB_GAME.zip"
+    def generate_sketchware_bundle(self):
+        """Packages single-source /app/src/main into export/SECT_IDLE_SKETCHWARE.zip without repo duplication."""
+        app_main = self.repo_root / "app" / "src" / "main"
+        zip_path = self.export_dir / "SECT_IDLE_SKETCHWARE.zip"
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
-            z.write(html_file, arcname="index.html")
-            z.write(js_file, arcname="game.js")
+            if app_main.exists():
+                for file_path in sorted(app_main.rglob("*")):
+                    if file_path.is_file():
+                        z.write(file_path, arcname="src/main/" + str(file_path.relative_to(app_main)))
 
     def generate_ios_package(self):
         """Generates iOS .ipa package container."""
@@ -149,7 +169,7 @@ if (canvas) {
             targets = list(TARGET_PROFILES.keys())
 
         print("=================================================")
-        print("  CHIMERA GENERATOR CORE v5.0 - PYTHON PIPELINE  ")
+        print("  CHIMERA GENERATOR CORE v6.0 - PYTHON PIPELINE  ")
         print("=================================================")
 
         for target in targets:
@@ -160,6 +180,10 @@ if (canvas) {
             elif target == "ios":
                 self.generate_ios_package()
                 print("    [✓] iOS App Package created: export/NUSA_IOS_PACKAGE.ipa")
+                continue
+            elif target == "sketchware":
+                self.generate_sketchware_bundle()
+                print("    [✓] Sketchware Single-Source Bundle created: export/SECT_IDLE_SKETCHWARE.zip")
                 continue
 
             prof = TARGET_PROFILES.get(target, TARGET_PROFILES["psp"])
@@ -180,8 +204,8 @@ if (canvas) {
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Chimera Core Generator v5.0")
-    parser.add_argument("--target", choices=list(TARGET_PROFILES.keys()) + ["all"], default="all", help="Target platform console")
+    parser = argparse.ArgumentParser(description="Chimera Core Generator v6.0")
+    parser.add_argument("--target", choices=list(TARGET_PROFILES.keys()) + ["sketchware", "all"], default="all", help="Target platform console")
     args = parser.parse_args()
 
     targets = list(TARGET_PROFILES.keys()) if args.target == "all" else [args.target]

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { soundManager } from '../utils/audio';
-import { Terminal, Gamepad2, Download, Cpu, X, CheckCircle, RefreshCw } from 'lucide-react';
+import { CONSOLE_TARGETS, CORE_SPEC } from '../constants/gameData';
+import { Terminal, Gamepad2, Download, Cpu, RefreshCw } from 'lucide-react';
+import { ModalShell } from './ModalShell';
 
 interface ChimeraStudioModalProps {
   isOpen: boolean;
@@ -13,182 +15,189 @@ export const ChimeraStudioModal: React.FC<ChimeraStudioModalProps> = ({
   onClose,
   sectName,
 }) => {
-  const [selectedTarget, setSelectedTarget] = useState<string>('ps2');
+  const [selectedTarget, setSelectedTarget] = useState<string>(CONSOLE_TARGETS[0]?.id ?? 'ps2');
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportLogs, setExportLogs] = useState<string[]>([]);
   const [downloadReady, setDownloadReady] = useState<boolean>(false);
 
-  if (!isOpen) return null;
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const targets = [
-    { id: 'ps2', name: 'PlayStation 2 (ISO)', ext: '.iso', desc: 'PS2 CDVD TMD converter with hardware EE VU1 optimization.' },
-    { id: 'psp', name: 'PSP (EBOOT.PBP)', ext: '.pbp', desc: 'Sony PlayStation Portable MIPS Allegrex native binary.' },
-    { id: 'vita', name: 'PS Vita (VPK)', ext: '.vpk', desc: 'PlayStation Vita ARM Cortex-A9 GXM package.' },
-    { id: 'switch', name: 'Nintendo Switch (NSP)', ext: '.nsp', desc: 'Tegra X1 ARM64 Homebrew NSP package.' },
-    { id: 'nds', name: 'Nintendo DS (NDS)', ext: '.nds', desc: 'ARM9/ARM7 Dual-Screen ROM with touch stylus controls.' },
-    { id: 'ps3', name: 'PlayStation 3 (PKG)', ext: '.pkg', desc: 'Cell Broadband Engine SPU pipeline export.' },
-    { id: 'desktop', name: 'Desktop Native (ELF/EXE)', ext: '.bin', desc: 'x86_64 standalone executable with Vulkan/OpenGL.' },
-  ];
+  const clearTimers = () => {
+    timersRef.current.forEach(t => clearTimeout(t));
+    timersRef.current = [];
+  };
+
+  useEffect(() => {
+    return () => clearTimers();
+  }, []);
+
+  const targetObj = CONSOLE_TARGETS.find(t => t.id === selectedTarget) || CONSOLE_TARGETS[0];
 
   const handleExport = () => {
     soundManager.playClick();
+    clearTimers();
     setIsExporting(true);
     setDownloadReady(false);
     setExportLogs([]);
 
-    const targetObj = targets.find(t => t.id === selectedTarget) || targets[0];
+    const safeSlug = sectName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'sect_idle';
     const steps = [
-      `[Chimera v6.0] Initializing pipeline for target: ${targetObj.name}...`,
-      `[VoxelMesh] Packing 3D sect assets, voxel tilesets, and char models...`,
-      `[TMD-Converter] Synthesizing polygon vertices & texture atlas...`,
-      `[GameEngine] Compiling Sect Idle core loop & ATB battle state bytecode...`,
-      `[Packager] Generating signed ${targetObj.ext} image for ${sectName}...`,
-      `[DONE] Build succeeded in 0.84s! File: ${sectName.toLowerCase().replace(/\s+/g, '_')}${targetObj.ext}`
+      `[Chimera v${CORE_SPEC.version}] Initializing unified pipeline for ${targetObj.name}...`,
+      `[Spec] Loaded single-source canonical ruleset (${CORE_SPEC.realms.length} realms, ${CORE_SPEC.buildings.length} buildings).`,
+      `[Kernel/OS] Configuring target ABI, low-RAM allocator, and zero-network offline assets...`,
+      `[GameEngine] Linking Sect Idle simulation loop & ATB battle state bytecode...`,
+      `[Packager] Preparing ${targetObj.ext} build manifest for ${sectName}...`,
+      `[DONE] Manifest ready! Target package: ${safeSlug}_${targetObj.id}${targetObj.ext}`,
     ];
 
     steps.forEach((s, idx) => {
-      setTimeout(() => {
+      const t = setTimeout(() => {
         setExportLogs(prev => [...prev, s]);
         if (idx === steps.length - 1) {
           setIsExporting(false);
           setDownloadReady(true);
           soundManager.playBreakthrough();
         }
-      }, (idx + 1) * 350);
+      }, (idx + 1) * 260);
+      timersRef.current.push(t);
     });
   };
 
   const handleDownload = () => {
     soundManager.playClick();
-    const targetObj = targets.find(t => t.id === selectedTarget) || targets[0];
-    const blob = new Blob([exportLogs.join('\n')], { type: 'text/plain' });
+    const safeSlug = sectName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'sect_idle';
+    const manifestPayload = JSON.stringify(
+      {
+        generator: 'Chimera Unified Pipeline',
+        version: CORE_SPEC.version,
+        sectName,
+        target: targetObj,
+        exportedAt: new Date().toISOString(),
+        logs: exportLogs,
+        specSummary: {
+          realms: CORE_SPEC.realms.length,
+          buildings: CORE_SPEC.buildings.length,
+          techNodes: CORE_SPEC.techTree.length,
+          cliHint: `python3 src/generator_core.py --target ${targetObj.id} --name "${sectName}"`,
+        },
+      },
+      null,
+      2
+    );
+    const blob = new Blob([manifestPayload], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${sectName.toLowerCase().replace(/\s+/g, '_')}_build_manifest${targetObj.ext}.txt`;
+    a.download = `${safeSlug}_${targetObj.id}_manifest.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-cyan-500/30 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/90">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-cyan-500/10 border border-cyan-500/30 rounded-xl">
-              <Gamepad2 className="w-5 h-5 text-cyan-400" />
-            </div>
-            <div>
-              <h3 className="font-serif-title font-bold text-slate-100 text-lg">
-                Chimera Build Engine v6.0 Studio
-              </h3>
-              <p className="text-xs text-slate-400">
-                1-Click Multiplatform Console Exporter (PS2, PSP, Vita, Switch, NDS, PS3)
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="2xl"
+      borderClassName="border-cyan-500/30"
+      icon={
+        <div className="p-2 bg-cyan-500/10 border border-cyan-500/30 rounded-xl">
+          <Gamepad2 className="w-5 h-5 text-cyan-400" />
         </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-4 overflow-y-auto max-h-[75vh]">
-          {/* Target Selector */}
-          <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
-              Select Console Target Platform
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {targets.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => {
-                    soundManager.playClick();
-                    setSelectedTarget(t.id);
-                  }}
-                  className={`p-3 text-left rounded-xl border transition ${
-                    selectedTarget === t.id
-                      ? 'bg-cyan-950/40 border-cyan-500 text-cyan-200 shadow-md'
-                      : 'bg-slate-800/40 border-slate-700/60 hover:bg-slate-800 text-slate-300'
-                  }`}
-                >
-                  <div className="font-bold text-xs truncate">{t.name}</div>
-                  <div className="text-[10px] text-slate-400 mt-1 line-clamp-2">{t.desc}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Console Build Logs */}
-          <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs">
-            <div className="flex items-center justify-between text-[11px] text-slate-500 mb-2 border-b border-slate-800/80 pb-1">
-              <span className="flex items-center gap-1.5 text-slate-400">
-                <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-                Build Output Terminal
-              </span>
-              <span>Node.js / Chimera Core</span>
-            </div>
-
-            <div className="h-32 overflow-y-auto space-y-1 text-slate-300 pr-1">
-              {exportLogs.length === 0 ? (
-                <span className="text-slate-600 italic">Select a target platform and click "Start Multiplatform Export" to compile...</span>
-              ) : (
-                exportLogs.map((log, i) => (
-                  <div
-                    key={i}
-                    className={
-                      log.includes('[DONE]')
-                        ? 'text-emerald-400 font-bold'
-                        : log.includes('[Chimera')
-                        ? 'text-cyan-400'
-                        : 'text-slate-300'
-                    }
-                  >
-                    {log}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Action Button */}
-          <div className="flex gap-3">
+      }
+      title="Chimera Unified Target Studio"
+      subtitle="All Consoles, All Kernels & All OS Build Manifest Exporter (CLI: build_v6.js / generator_core.py)"
+    >
+      <div>
+        <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+          Select Target Platform ({CONSOLE_TARGETS.length} Supported Targets)
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {CONSOLE_TARGETS.map(t => (
             <button
-              onClick={handleExport}
-              disabled={isExporting}
-              className={`flex-1 py-3.5 rounded-xl font-bold text-xs transition shadow-lg flex items-center justify-center gap-2 ${
-                isExporting
-                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 text-slate-950'
+              key={t.id}
+              type="button"
+              onClick={() => {
+                soundManager.playClick();
+                setSelectedTarget(t.id);
+              }}
+              className={`p-3 text-left rounded-xl border transition ${
+                selectedTarget === t.id
+                  ? 'bg-cyan-950/40 border-cyan-500 text-cyan-200 shadow-md'
+                  : 'bg-slate-800/40 border-slate-700/60 hover:bg-slate-800 text-slate-300'
               }`}
             >
-              {isExporting ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" /> Compiling Console Image...
-                </>
-              ) : (
-                <>
-                  <Cpu className="w-4 h-4" /> Start Multiplatform Export
-                </>
-              )}
+              <div className="font-bold text-xs truncate">{t.name}</div>
+              <div className="text-[10px] text-slate-400 mt-1 line-clamp-2">{t.desc}</div>
             </button>
-
-            {downloadReady && (
-              <button
-                onClick={handleDownload}
-                className="py-3.5 px-5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition flex items-center gap-2 shadow-lg"
-              >
-                <Download className="w-4 h-4" /> Download Package
-              </button>
-            )}
-          </div>
+          ))}
         </div>
       </div>
-    </div>
+
+      <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs">
+        <div className="flex items-center justify-between text-[11px] text-slate-500 mb-2 border-b border-slate-800/80 pb-1">
+          <span className="flex items-center gap-1.5 text-slate-400">
+            <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+            Unified Build Output
+          </span>
+          <span>Zero-Redundancy Core</span>
+        </div>
+
+        <div className="h-32 overflow-y-auto space-y-1 text-slate-300 pr-1">
+          {exportLogs.length === 0 ? (
+            <span className="text-slate-500 italic">
+              Select a target platform and click "Generate Build Manifest" to verify the cross-OS export pipeline...
+            </span>
+          ) : (
+            exportLogs.map((log, i) => (
+              <div
+                key={i}
+                className={
+                  log.includes('[DONE]')
+                    ? 'text-emerald-400 font-bold'
+                    : log.includes('[Chimera')
+                    ? 'text-cyan-400'
+                    : 'text-slate-300'
+                }
+              >
+                {log}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={isExporting}
+          className={`flex-1 py-3.5 px-4 rounded-xl font-bold text-xs transition shadow-lg flex items-center justify-center gap-2 ${
+            isExporting
+              ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+              : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 text-slate-950'
+          }`}
+        >
+          {isExporting ? (
+            <>
+              <RefreshCw className="w-4 h-4 animate-spin" /> Packaging Target Manifest...
+            </>
+          ) : (
+            <>
+              <Cpu className="w-4 h-4" /> Generate Build Manifest
+            </>
+          )}
+        </button>
+
+        {downloadReady && (
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="py-3.5 px-5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition flex items-center gap-2 shadow-lg"
+          >
+            <Download className="w-4 h-4" /> Download Manifest (.json)
+          </button>
+        )}
+      </div>
+    </ModalShell>
   );
 };

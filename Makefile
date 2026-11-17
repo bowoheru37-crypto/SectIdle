@@ -7,7 +7,7 @@ EXPORT_DIR = export
 
 $(shell mkdir -p $(EXPORT_DIR))
 
-.PHONY: all psx ps2 nds psp vita switch ps3 retroarch windows mac linux mobile ios web desktop nizam clean
+.PHONY: all psx ps2 nds psp vita switch ps3 retroarch windows mac linux mobile ios web desktop nizam sketchware clean
 
 all: psx ps2 nds psp vita switch ps3 retroarch windows mac linux mobile ios web desktop nizam
 	@echo "================================================="
@@ -77,6 +77,10 @@ web:
 	@python3 src/generator_core.py --target web
 
 desktop: windows mac linux
+
+sketchware:
+	@echo "[>] Packaging Single-Source Sketchware Pro Bundle (SECT_IDLE_SKETCHWARE.zip)..."
+	@python3 src/generator_core.py --target sketchware
 
 clean:
 	@rm -rf $(EXPORT_DIR)/*

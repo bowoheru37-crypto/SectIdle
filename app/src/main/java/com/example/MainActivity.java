@@ -17,15 +17,9 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import com.sect.idle.core.GameConfig;
-import com.sect.idle.gameplay.HobbySystem;
 import com.sect.idle.gameplay.SaveManager;
 import com.sect.idle.gameplay.SectData;
-import com.sect.idle.gameplay.TalentSystem;
-import com.sect.idle.models.Building;
-import com.sect.idle.models.Disciple;
 import com.sect.idle.systems.AudioManager;
-import com.sect.idle.systems.RNG;
 import com.sect.idle.ui.GameActivity;
 
 import java.util.Random;
@@ -215,45 +209,7 @@ public class MainActivity extends Activity {
                 } catch (Exception ignored) {}
 
                 if (!loaded) {
-                    data.reset();
-                    String[] names = {"Li Yun", "Zhang Wei", "Wang Fang", "Chen Ming", "Liu Hua", "Zhao Kai", "Sun Mei", "Wu Jian"};
-                    for (int i = 0; i < 3; i++) {
-                        Disciple d = new Disciple();
-                        d.name = RNG.pick(names);
-                        d.isMale = RNG.chance(50);
-                        d.initStats(
-                                RNG.nextInt(15, 45),
-                                RNG.nextInt(15, 45),
-                                RNG.nextInt(15, 45),
-                                RNG.nextInt(10, 35),
-                                RNG.nextInt(10, 35),
-                                RNG.nextInt(10, 35),
-                                RNG.nextInt(10, 30)
-                        );
-                        d.realm = RNG.nextInt(2);
-                        d.realmExp = RNG.nextInt(500);
-                        d.element = RNG.nextInt(11);
-                        d.personality = RNG.nextInt(15);
-                        TalentSystem.generateTalent(d);
-                        HobbySystem.assignRandomHobby(d);
-                        d.dailyWage = d.getExpectedWage();
-                        d.recalcCombat();
-
-                        if (i == 0) d.currentTask = GameConfig.TASK_FARMING;
-                        else if (i == 1) d.currentTask = GameConfig.TASK_ALCHEMY;
-                        else d.currentTask = GameConfig.TASK_GUARD;
-
-                        d.updateEfficiency();
-                        data.addDisciple(d);
-                    }
-
-                    if (data.buildings != null && !data.buildings.isEmpty()) {
-                        Building mainHall = data.buildings.get(0);
-                        if (mainHall != null) {
-                            mainHall.isBuilt = true;
-                        }
-                    }
-                    data.recalculateEconomy();
+                    data.initializeStarterSect();
                 }
 
                 // Smooth progressive loading on UI thread

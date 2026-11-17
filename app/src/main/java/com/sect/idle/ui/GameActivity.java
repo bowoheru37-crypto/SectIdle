@@ -284,32 +284,10 @@ public class GameActivity extends Activity {
             return;
         }
 
-        data.reset();
-        LogManager.get(this).info("data.reset done. Buildings size: " + data.buildings.size());
-
-        for (int i = 0; i < STARTER_COUNT; i++) {
-            Disciple d = generateRandomDisciple();
-            switch (i) {
-                case 0: d.currentTask = GameConfig.TASK_FARMING; break;
-                case 1: d.currentTask = GameConfig.TASK_ALCHEMY; break;
-                default: d.currentTask = GameConfig.TASK_GUARD; break;
-            }
-            d.updateEfficiency();
-            data.addDisciple(d);
-            LogManager.get(this).info("Added disciple: " + d.name);
-        }
+        data.initializeStarterSect();
         LogManager.get(this).info("Total disciples: " + data.disciples.size());
 
-        if (data.buildings != null && !data.buildings.isEmpty()) {
-            data.buildings.get(0).build();
-            LogManager.get(this).info("First building built");
-        } else {
-            LogManager.get(this).warning("buildings list is empty! Skip build");
-        }
-
-        data.recalculateEconomy();
-
-        if (sceneManager.getSectScene() != null && sceneManager.getSectScene().getCamera() != null) {
+        if (sceneManager != null && sceneManager.getSectScene() != null && sceneManager.getSectScene().getCamera() != null) {
             sceneManager.getSectScene().getCamera().pos.set(2000f, 2000f);
             LogManager.get(this).info("Camera centered to 2000,2000");
         }
@@ -318,42 +296,10 @@ public class GameActivity extends Activity {
     }
 
     private Disciple generateRandomDisciple() {
-        Disciple d = new Disciple();
-        d.name = RNG.pick(starterNames);
-        d.isMale = RNG.chance(50);
-        d.initStats(
-            RNG.nextInt(10, 40), RNG.nextInt(10, 40), RNG.nextInt(10, 40),
-            RNG.nextInt(5, 30), RNG.nextInt(10, 30), RNG.nextInt(10, 30), RNG.nextInt(5, 25)
-        );
-        d.realm = RNG.nextInt(2);
-        d.realmExp = RNG.nextInt(500);
-        d.element = RNG.nextInt(GameConfig.ELEM_COUNT);
-        d.personality = RNG.nextInt(GameConfig.PER_COUNT);
-
-        d.colorTint = GameConfig.getElementColor(d.element);
-
-        try {
-            TalentSystem.generateTalent(d);
-        } catch (Exception e) {
-            LogManager.get(this).error("Talent gen failed: " + e.getMessage());
-            d.talentType = GameConfig.TAL_NONE;
+        if (data != null) {
+            return data.createRandomDisciple(SectData.DEFAULT_DISCIPLE_NAMES);
         }
-
-        try {
-            HobbySystem.assignRandomHobby(d);
-        } catch (Exception e) {
-            LogManager.get(this).error("Hobby assign failed: " + e.getMessage());
-            d.hobby = 0;
-        }
-
-        d.dailyWage = d.getExpectedWage();
-        d.recalcCombat();
-        d.updateEfficiency();
-
-        d.position.set(2000f + RNG.nextFloat(-120, 120), 2000f + RNG.nextFloat(-120, 120));
-        d.targetPos.set(d.position.x, d.position.y);
-
-        return d;
+        return SectData.getInstance().createRandomDisciple(SectData.DEFAULT_DISCIPLE_NAMES);
     }
 
     public void startBattle() {
