@@ -177,6 +177,7 @@ export const App: React.FC = () => {
   const [isMarketOpen, setIsMarketOpen] = useState<boolean>(false);
   const [isAscensionOpen, setIsAscensionOpen] = useState<boolean>(false);
   const [isStudioOpen, setIsStudioOpen] = useState<boolean>(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState<boolean>(false);
   const [slashMiniGameConfig, setSlashMiniGameConfig] = useState<{
     isOpen: boolean;
     type: 'garden' | 'alchemy';
@@ -568,10 +569,12 @@ export const App: React.FC = () => {
 
   // Reset Game
   const handleResetGame = () => {
-    if (confirm('Start a fresh cultivation lineage? Current sect progress will be reset.')) {
-      localStorage.removeItem(STORAGE_KEY);
-      window.location.reload();
-    }
+    setIsResetConfirmOpen(true);
+  };
+
+  const confirmResetGame = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    window.location.reload();
   };
 
   return (
@@ -1044,6 +1047,33 @@ export const App: React.FC = () => {
           onSuccess={handleTribulationSuccess}
           onCancel={() => setTribulationDisciple(null)}
         />
+      )}
+
+      {isResetConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
+            <h3 className="font-serif-title font-bold text-base text-amber-300">
+              Reset Cultivation Lineage?
+            </h3>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Start a fresh cultivation lineage? Current sect progress will be reset.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setIsResetConfirmOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmResetGame}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition"
+              >
+                Reset Sect
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
